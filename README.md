@@ -71,12 +71,14 @@ sudo reboot
 
 ## NOT covered
 
-What the configuration cannot cover:
-- **Physical security** - BIOS/UEFI passwords, disable boot from external devices, physical access controls
-- **Installation choices** - LUKS, ZFS, etc.
-- **GRUB security** - Bootloader password, secure boot configuration
-- **LAN security** - Wifi, router configuration
+What the configuration **doesn't cover**:
+- **Physical security** - BIOS/UEFI passwords, disable boot from external devices, blocking all password login (including physical)
+- **Installation choices** - LUKS, ZFS, secure installation media verification
+- **GRUB security** - Bootloader password, secure boot configuration, kernel parameter hardening
+- **LAN security** - Wifi, router configuration, network segmentation
+- **Advanced hardening** - SELinux instead of AppArmor, grsecurity kernel patches, hardware security modules (HSM), container runtime security, MFA for SSH authentication, Ubuntu Livepatch for zero-downtime kernel updates
 
-In case of outside-facing services:
+
+In case of **outside-facing services**:
 - **Internet exposure** - IP filtering, geo-blocking, VPN detection
 - **Service-specific hardening** - Web servers, databases, application-level security
