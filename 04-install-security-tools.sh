@@ -44,9 +44,15 @@ postconf -e "relayhost = [smtp.gmail.com]:587"
 
 systemctl restart postfix
 
+# Get the absolute path to the configuration file
+CONFIG_PATH=$(realpath "$(dirname "$0")/config.sh")
+
 # Create email formatting helper script
-cat > /usr/local/sbin/format_security_mail.sh <<'EOF'
+cat > /usr/local/sbin/format_security_mail.sh <<EOF
 #!/bin/bash
+# Load server configuration
+source "${CONFIG_PATH}"
+
 set -e
 set -o pipefail
 
