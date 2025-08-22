@@ -75,7 +75,7 @@ TYPE_UP=${TYPE^^}
 
 # Format the From header and Subject
 FROM_HEADER="From: \"${SERVER_NAME} Security Alerts\" <${GMAIL_ADDRESS}>"
-SUBJECT="[Level: ${SEVERITY_UP}] ${TYPE_UP}: ${SUBJECT_DETAIL}"
+SUBJECT="Level: ${SEVERITY_UP} - ${TYPE_UP}: ${SUBJECT_DETAIL}"
 
 # Format the body
 if [ -z "$BODY" ]; then
