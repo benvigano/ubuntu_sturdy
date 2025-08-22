@@ -73,10 +73,20 @@ EOF
 
 chmod +x /usr/local/sbin/format_security_mail.sh
 
-# Send a test email
+# Send a test email and verify it was sent successfully
 echo "Sending a test email to ${NOTIFICATION_EMAIL}..."
-/usr/local/sbin/format_security_mail.sh "WARNING" "SETUP-TEST" "Initial email configuration test" "This is a test email from your new server setup. If you receive this, email notifications are working correctly."
-echo "Test email sent. Please check your inbox to confirm it was received."
+if ! /usr/local/sbin/format_security_mail.sh "WARNING" "SETUP-TEST" "Initial email configuration test" "This is a test email from your new server setup. If you receive this, email notifications are working correctly."; then
+    echo "ERROR: Failed to send test email. Email configuration may be incorrect."
+    echo "Please check:"
+    echo "  - GMAIL_ADDRESS and GMAIL_APP_PASSWORD in config.sh"
+    echo "  - Gmail app password is correctly generated"
+    echo "  - NOTIFICATION_EMAIL is valid"
+    echo "Aborting setup due to email configuration failure."
+    exit 1
+fi
+
+echo "Test email sent successfully. Please check your inbox to confirm it was received."
+echo "If you don't receive it, there may be an issue with your Gmail configuration."
 sleep 5 # Give postfix a moment to send
 
 # --- Configure AIDE ---
