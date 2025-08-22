@@ -47,12 +47,14 @@ systemctl restart postfix
 # Get the absolute path to the configuration file
 CONFIG_PATH=$(realpath "$(dirname "$0")/config.sh")
 
-# Create email formatting helper script
-cat > /usr/local/sbin/format_security_mail.sh <<EOF
-#!/bin/bash
-# Load server configuration
-source "${CONFIG_PATH}"
-
+# Create email formatting helper script.
+# We write the config source line separately to expand the CONFIG_PATH variable,
+# then append the rest of the script with a quoted 'EOF' to prevent premature
+# variable expansion of $1, $SUBJECT, etc.
+echo "#!/bin/bash" > /usr/local/sbin/format_security_mail.sh
+echo "# Load server configuration" >> /usr/local/sbin/format_security_mail.sh
+echo "source \"${CONFIG_PATH}\"" >> /usr/local/sbin/format_security_mail.sh
+cat >> /usr/local/sbin/format_security_mail.sh <<'EOF'
 set -e
 set -o pipefail
 
