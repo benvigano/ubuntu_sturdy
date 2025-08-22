@@ -262,7 +262,7 @@ cat > /etc/fail2ban/jail.local <<EOF
 [DEFAULT]
 destemail = ${NOTIFICATION_EMAIL}
 sender = ${GMAIL_ADDRESS}
-# Use our custom mail action
+# Use our custom mail action (no start/stop notifications)
 action = custom-mail[name=%(__name__)s]
 
 [sshd]
@@ -276,7 +276,8 @@ bantime = 1h
 enabled = true
 filter = recidive
 logpath = /var/log/fail2ban.log
-action = %(action_mwl)s
+# Only send ban notifications, not start/stop
+action = custom-mail[name=%(__name__)s]
 bantime = 1w
 findtime = 1d
 maxretry = 5
