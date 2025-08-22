@@ -59,7 +59,7 @@ set -e
 set -o pipefail
 
 # Arguments:
-# $1: severity (CRITICAL or WARNING)
+# $1: severity (INFO, WARNING, or CRITICAL)
 # $2: alert type (e.g., "VIRUS-FOUND", "UPDATE-FAILED")
 # $3: subject details
 # $4: email body (optional)
@@ -69,21 +69,38 @@ TYPE=$2
 SUBJECT_DETAIL=$3
 BODY=$4
 
-# Format the subject with severity and server context
-SUBJECT="[${SERVER_NAME}][${SEVERITY}] ${TYPE}: ${SUBJECT_DETAIL}"
+# Uppercase variables for formatting
+SEVERITY_UP=${SEVERITY^^}
+TYPE_UP=${TYPE^^}
+SERVER_NAME_UP=${SERVER_NAME^^}
 
+# Format the From header and Subject
+FROM_HEADER="From: \"${SERVER_NAME_UP} - System Alert\" <${GMAIL_ADDRESS}>"
+SUBJECT="Severity: ${SEVERITY_UP} - ${TYPE_UP}: ${SUBJECT_DETAIL}"
+
+# Format the body
 if [ -z "$BODY" ]; then
-    echo "$SUBJECT" | mail -s "$SUBJECT" "${NOTIFICATION_EMAIL}"
+    # If no body, use a simple message based on the subject.
+    EMAIL_BODY="Type: ${TYPE_UP}\nDetails: ${SUBJECT_DETAIL}"
 else
-    echo -e "Server: ${SERVER_NAME}\nSeverity: ${SEVERITY}\nType: ${TYPE}\nDetails: ${SUBJECT_DETAIL}\n\n${BODY}" | mail -s "$SUBJECT" "${NOTIFICATION_EMAIL}"
+    EMAIL_BODY="Type: ${TYPE_UP}\nDetails: ${SUBJECT_DETAIL}\n\n${BODY}"
 fi
+
+# Construct and send the email using sendmail for reliable header control
+(
+echo "${FROM_HEADER}"
+echo "To: ${NOTIFICATION_EMAIL}"
+echo "Subject: ${SUBJECT}"
+echo ""
+echo -e "${EMAIL_BODY}"
+) | /usr/sbin/sendmail -t
 EOF
 
 chmod +x /usr/local/sbin/format_security_mail.sh
 
 # Send a test email and verify it was sent successfully
 echo "Sending a test email to ${NOTIFICATION_EMAIL}..."
-if ! /usr/local/sbin/format_security_mail.sh "WARNING" "SETUP-TEST" "Initial email configuration test" "This is a test email from your new server setup. If you receive this, email notifications are working correctly."; then
+if ! /usr/local/sbin/format_security_mail.sh "INFO" "SETUP-TEST" "Initial email configuration test" "This is a test email from your new server setup. If you receive this, email notifications are working correctly."; then
     echo "ERROR: Failed to send test email. Email configuration may be incorrect."
     echo "Please check:"
     echo "  - GMAIL_ADDRESS and GMAIL_APP_PASSWORD in config.sh"

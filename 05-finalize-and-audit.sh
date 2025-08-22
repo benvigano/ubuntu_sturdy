@@ -25,7 +25,7 @@ echo "Lynis audit complete."
 echo "Emailing the security audit report..."
 
 # Email the Lynis report for review
-/usr/local/sbin/format_security_mail.sh "WARNING" "LYNIS-AUDIT" "Initial security audit completed" "$LYNIS_REPORT"
+/usr/local/sbin/format_security_mail.sh "INFO" "LYNIS-AUDIT" "Initial security audit completed" "$LYNIS_REPORT"
 
 echo "Lynis audit report has been emailed to ${NOTIFICATION_EMAIL}."
 
