@@ -235,12 +235,27 @@ EOF
 
 echo "Configuring rkhunter for rootkit scanning..."
 
-# Fix the WEB_CMD configuration warning by disabling web updates
-sed -i "s/^WEB_CMD=.*/WEB_CMD=\"\"/" /etc/rkhunter.conf
+# Configure rkhunter to use remote mirrors for updates and enable auto-detection of a download tool.
+sed -i 's/^UPDATE_MIRRORS=.*/UPDATE_MIRRORS=1/' /etc/rkhunter.conf
+sed -i 's/^MIRRORS_MODE=.*/MIRRORS_MODE=0/' /etc/rkhunter.conf
+sed -i -E 's/^[#\s]*WEB_CMD=.*/# &/' /etc/rkhunter.conf
 
-# Update data files
-rkhunter --update
-rkhunter --propupd
+# Update data files with strict error checking
+echo "Updating rkhunter data files..."
+UPDATE_OUTPUT=$(rkhunter --update 2>&1)
+echo "${UPDATE_OUTPUT}"
+if echo "${UPDATE_OUTPUT}" | grep -q "Update failed"; then
+    echo "ERROR: rkhunter failed to update one or more data files."
+    echo "Please check the log file at /var/log/rkhunter.log for details."
+    exit 1
+fi
+
+echo "Updating rkhunter file properties database..."
+if ! rkhunter --propupd; then
+    echo "ERROR: rkhunter --propupd command failed."
+    echo "Please check the log file at /var/log/rkhunter.log for details."
+    exit 1
+fi
 
 # Configure rkhunter to email on warnings and run via cron
 sed -i "s/^MAILTO=.*/MAILTO=\"${NOTIFICATION_EMAIL}\"/" /etc/rkhunter.conf
