@@ -72,11 +72,10 @@ BODY=$4
 # Uppercase variables for formatting
 SEVERITY_UP=${SEVERITY^^}
 TYPE_UP=${TYPE^^}
-SERVER_NAME_UP=${SERVER_NAME^^}
 
 # Format the From header and Subject
-FROM_HEADER="From: \"${SERVER_NAME_UP} - System Alert\" <${GMAIL_ADDRESS}>"
-SUBJECT="Severity: ${SEVERITY_UP} - ${TYPE_UP}: ${SUBJECT_DETAIL}"
+FROM_HEADER="From: \"${SERVER_NAME}\" <${GMAIL_ADDRESS}>"
+SUBJECT="System Alert - Severity: ${SEVERITY_UP}"
 
 # Format the body
 if [ -z "$BODY" ]; then
