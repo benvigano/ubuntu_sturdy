@@ -235,47 +235,44 @@ EOF
 
 echo "Configuring rkhunter for rootkit scanning..."
 
-# Configure rkhunter to use remote mirrors for updates and enable auto-detection of a download tool.
-sed -i 's/^UPDATE_MIRRORS=.*/UPDATE_MIRRORS=1/' /etc/rkhunter.conf
-sed -i 's/^MIRRORS_MODE=.*/MIRRORS_MODE=0/' /etc/rkhunter.conf
-sed -i -E 's/^[#\s]*WEB_CMD=.*/# &/' /etc/rkhunter.conf
-
-# Update data files with strict error checking
-echo "Updating rkhunter data files..."
-UPDATE_OUTPUT=$(rkhunter --update 2>&1)
-echo "${UPDATE_OUTPUT}"
-if echo "${UPDATE_OUTPUT}" | grep -q "Update failed"; then
-    echo "ERROR: rkhunter failed to update one or more data files."
-    echo "Please check the log file at /var/log/rkhunter.log for details."
-    exit 1
+# Disable web updates to avoid HTTP/HTTPS redirect issues with rkhunter.sourceforge.net
+# This uses the signature files provided by the Ubuntu package, which are updated via APT
+sed -i "s/^#*WEB_CMD=.*/WEB_CMD=\"\"/" /etc/rkhunter.conf
+# Ensure the line exists if it doesn't
+if ! grep -q "^WEB_CMD=" /etc/rkhunter.conf; then
+    echo "WEB_CMD=\"\"" >> /etc/rkhunter.conf
 fi
 
-echo "Updating rkhunter file properties database..."
-if ! rkhunter --propupd; then
-    echo "ERROR: rkhunter --propupd command failed."
-    echo "Please check the log file at /var/log/rkhunter.log for details."
-    exit 1
-fi
+# Update data files
+rkhunter --update
+rkhunter --propupd
 
 # Configure rkhunter to email on warnings and run via cron
 sed -i "s/^MAILTO=.*/MAILTO=\"${NOTIFICATION_EMAIL}\"/" /etc/rkhunter.conf
 sed -i "s/^CRON_DAILY_RUN=.*/CRON_DAILY_RUN=\"true\"/" /etc/default/rkhunter
 sed -i "s/^APT_AUTOGEN=.*/APT_AUTOGEN=\"true\"/" /etc/default/rkhunter
 
-# Set up automated weekly rkhunter database updates with status check
+# Set up automated weekly rkhunter package and property updates
 cat > /usr/local/sbin/check_rkhunter_update.sh <<'EOF'
 #!/bin/bash
 set -e
 set -o pipefail
 
-# Run update and capture output
-UPDATE_OUTPUT=$(/usr/bin/rkhunter --update --nocolors 2>&1) || {
-    ERROR_MSG="rkhunter database update failed!\n\nError output:\n${UPDATE_OUTPUT}"
-    /usr/local/sbin/format_security_mail.sh "WARNING" "RKHUNTER-UPDATE-FAILED" "Database update error" "$ERROR_MSG"
+# Load server configuration
+source "$(dirname "$0")/../../ubuntu_sturdy/config.sh" 2>/dev/null || source "/root/ubuntu_sturdy/config.sh" 2>/dev/null || {
+    # Fallback: extract email from rkhunter config
+    NOTIFICATION_EMAIL=$(grep "^MAILTO=" /etc/rkhunter.conf 2>/dev/null | cut -d'"' -f2 || echo "root")
+    SERVER_NAME=$(hostname)
+}
+
+# Update rkhunter package to get latest signatures
+UPDATE_OUTPUT=$(/usr/bin/apt-get update && /usr/bin/apt-get install --only-upgrade rkhunter -y 2>&1) || {
+    ERROR_MSG="rkhunter package update failed!\n\nError output:\n${UPDATE_OUTPUT}"
+    /usr/local/sbin/format_security_mail.sh "WARNING" "RKHUNTER-UPDATE-FAILED" "Package update error" "$ERROR_MSG"
     exit 1
 }
 
-# Run property update and capture output
+# Update file properties after package update
 PROP_OUTPUT=$(/usr/bin/rkhunter --propupd --nocolors 2>&1) || {
     ERROR_MSG="rkhunter property update failed!\n\nError output:\n${PROP_OUTPUT}"
     /usr/local/sbin/format_security_mail.sh "WARNING" "RKHUNTER-UPDATE-FAILED" "Property update error" "$ERROR_MSG"
@@ -289,7 +286,7 @@ EOF
 chmod +x /usr/local/sbin/check_rkhunter_update.sh
 
 cat > /etc/cron.d/rkhunter-update <<EOF
-# Weekly rkhunter database update
+# Weekly rkhunter package and property update
 MAILTO="${NOTIFICATION_EMAIL}"
 0 3 * * 1 root /usr/local/sbin/check_rkhunter_update.sh
 EOF
