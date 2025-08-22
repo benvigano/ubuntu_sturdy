@@ -234,9 +234,13 @@ EOF
 # --- Configure rkhunter ---
 
 echo "Configuring rkhunter for rootkit scanning..."
-# Update data files (ignore warnings)
-rkhunter --update || true
-rkhunter --propupd || true
+
+# Fix the WEB_CMD configuration warning by disabling web updates
+sed -i "s/^WEB_CMD=.*/WEB_CMD=\"\"/" /etc/rkhunter.conf
+
+# Update data files
+rkhunter --update
+rkhunter --propupd
 
 # Configure rkhunter to email on warnings and run via cron
 sed -i "s/^MAILTO=.*/MAILTO=\"${NOTIFICATION_EMAIL}\"/" /etc/rkhunter.conf

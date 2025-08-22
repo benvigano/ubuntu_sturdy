@@ -39,9 +39,34 @@ systemctl start apparmor
 
 # Enable profiles for key services in complain mode first (safer)
 echo "Enabling AppArmor profiles in complain mode..."
-aa-complain /etc/apparmor.d/usr.sbin.sshd 2>/dev/null || true
-aa-complain /etc/apparmor.d/usr.lib.postfix.master 2>/dev/null || true
-aa-complain /etc/apparmor.d/usr.lib.postfix.* 2>/dev/null || true
+
+# Function to safely enable AppArmor profiles
+enable_profile_if_exists() {
+    local profile_name="$1"
+    if aa-status | grep -q "$profile_name" 2>/dev/null || [ -f "/etc/apparmor.d/$profile_name" ]; then
+        echo "Enabling profile: $profile_name"
+        aa-complain "$profile_name"
+    else
+        echo "Profile $profile_name not found, skipping..."
+    fi
+}
+
+# Try to enable common profiles for SSH and Postfix
+enable_profile_if_exists "usr.sbin.sshd"
+enable_profile_if_exists "usr.sbin.postfix"
+
+# Try alternative profile names if the above don't exist
+if ! aa-status | grep -q "usr.sbin.sshd" 2>/dev/null; then
+    for alt_profile in "sshd" "/usr/sbin/sshd"; do
+        enable_profile_if_exists "$alt_profile"
+    done
+fi
+
+if ! aa-status | grep -q "usr.sbin.postfix" 2>/dev/null; then
+    for alt_profile in "postfix" "/usr/sbin/postfix" "usr.lib.postfix.master"; do
+        enable_profile_if_exists "$alt_profile"
+    done
+fi
 
 # Set up monitoring for AppArmor violations
 cat > /etc/cron.d/apparmor-violations <<EOF
@@ -52,10 +77,10 @@ EOF
 
 # After a week, switch to enforce mode (more restrictive)
 # This gives time to identify any legitimate violations first
-cat > /etc/cron.d/apparmor-enforce <<EOF
+cat > /etc/cron.d/apparmor-enforce <<'EOF'
 # Switch to enforce mode after 7 days (runs once)
 MAILTO="${NOTIFICATION_EMAIL}"
-0 7 * * 7 root /usr/sbin/aa-enforce /etc/apparmor.d/usr.sbin.sshd 2>/dev/null || true; /usr/sbin/aa-enforce /etc/apparmor.d/usr.lib.postfix.* 2>/dev/null || true; /bin/rm -f /etc/cron.d/apparmor-enforce
+0 7 * * 7 root for profile in $(aa-status --complain 2>/dev/null | grep -E "(sshd|postfix)" | awk '{print $1}' || true); do aa-enforce "$profile" 2>/dev/null || true; done; /bin/rm -f /etc/cron.d/apparmor-enforce
 EOF
 
 echo "AppArmor configured. Profiles will switch to enforce mode after 7 days."
