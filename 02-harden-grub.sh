@@ -40,19 +40,35 @@ fi
 # Create a custom GRUB configuration file for security settings
 # This is idempotent and safer than modifying existing files.
 GRUB_SECURITY_FILE="/etc/grub.d/40_custom"
-cat > "${GRUB_SECURITY_FILE}" <<'EOF'
+
+# First create the shell script wrapper
+cat > "${GRUB_SECURITY_FILE}" <<EOF
 #!/bin/sh
-cat << 'EOL'
-if [ "${grub_platform}" == "efi" ]; then
-    set superusers="${GRUB_SUPERUSER}"
-    password_pbkdf2 ${GRUB_SUPERUSER} ${GRUB_PASSWORD_HASH}
-fi
-EOL
+cat << 'EndOfConfig'
+# Password protect GRUB
+set superusers="${GRUB_SUPERUSER}"
+password_pbkdf2 ${GRUB_SUPERUSER} ${GRUB_PASSWORD_HASH}
+EndOfConfig
 EOF
 
-# Replace the password hash placeholder with the actual hash
-# This is done separately to avoid variable expansion issues in the heredoc
-sed -i "s|\${GRUB_PASSWORD_HASH}|${GRUB_PASSWORD_HASH}|" "${GRUB_SECURITY_FILE}"
+# Make it executable
+chmod +x "${GRUB_SECURITY_FILE}"
+
+# Now create the main GRUB config that enables the password
+cat > /etc/default/grub <<EOF
+# If you change this file, run 'update-grub' afterwards to update
+# /boot/grub/grub.cfg.
+
+GRUB_DEFAULT=0
+GRUB_TIMEOUT_STYLE=menu
+GRUB_TIMEOUT=5
+GRUB_DISTRIBUTOR=\`lsb_release -i -s 2> /dev/null || echo Debian\`
+GRUB_CMDLINE_LINUX_DEFAULT="quiet"
+GRUB_CMDLINE_LINUX=""
+
+# Enable password protection
+GRUB_PASSWORD=true
+EOF
 
 # Make the new GRUB config file executable
 chmod +x "${GRUB_SECURITY_FILE}"
@@ -69,12 +85,12 @@ GRUB_CONFIG_FILE="/boot/grub/grub.cfg"
 grub_failures=()
 
 # Check that the superuser is set in the final GRUB config
-if ! grep -q "set superusers=\"${GRUB_SUPERUSER}\"" "${GRUB_CONFIG_FILE}"; then
+if ! grep -q "superusers.*${GRUB_SUPERUSER}" "${GRUB_CONFIG_FILE}"; then
     grub_failures+=("GRUB superuser was not set in ${GRUB_CONFIG_FILE}")
 fi
 
 # Check that the password is set in the final GRUB config
-if ! grep -q "password_pbkdf2 ${GRUB_SUPERUSER}" "${GRUB_CONFIG_FILE}"; then
+if ! grep -q "password_pbkdf2.*${GRUB_SUPERUSER}.*${GRUB_PASSWORD_HASH}" "${GRUB_CONFIG_FILE}"; then
     grub_failures+=("GRUB password was not set in ${GRUB_CONFIG_FILE}")
 fi
 
