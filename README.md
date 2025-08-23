@@ -29,9 +29,9 @@
 - START+3h   - Rootkit check (rkhunter)
 
 **Weekly:**
-- Sunday START+4h   - Full system antivirus scan (ClamAV)
-- Monday START+1h   - Rootkit database update (rkhunter)
-- Monday START+2h   - Intrusion prevention update (fail2ban)
+- Sunday   - START      - Full system antivirus scan (ClamAV)
+- Saturday - START      - Rootkit database update (rkhunter)
+- Saturday - START+1h   - Intrusion prevention update (fail2ban)
 
 *Note: Tasks are intentionally spread out to avoid resource contention.*
 
