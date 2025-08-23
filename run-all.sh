@@ -32,7 +32,7 @@ source config.sh
 # --- Variable Validation ---
 
 # Simple check to see if key variables are still set to their placeholder values
-if [[ -z "$ADMIN_USER_PUBLIC_KEY" ]] || [[ "$ADMIN_USER" == "your_username" ]] || [[ "$GMAIL_APP_PASSWORD" == "your_gmail_app_password" ]]; then
+if [[ -z "$ADMIN_USER_PUBLIC_KEY" ]] || [[ "$ADMIN_USER" == "your_username" ]] || [[ "$GRUB_PASSWORD" == "your_strong_grub_password" ]] || [[ "$GMAIL_APP_PASSWORD" == "your_gmail_app_password" ]]; then
     echo "ERROR: It looks like you haven't filled out the 'config.sh' file."
     echo "Please edit 'config.sh' and provide your specific details."
     exit 1
@@ -78,16 +78,19 @@ echo "Starting Ubuntu Hardening Process..."
 ./01-initial-setup.sh
 echo "[SUCCESS] Initial Setup script completed."
 
-./02-configure-firewall.sh
+./02-harden-grub.sh
+echo "[SUCCESS] GRUB Hardening script completed."
+
+./03-configure-firewall.sh
 echo "[SUCCESS] Firewall Configuration script completed."
 
-./03-harden-ssh.sh
+./04-harden-ssh.sh
 echo "[SUCCESS] SSH Hardening script completed."
 
-./04-install-security-tools.sh
+./05-install-security-tools.sh
 echo "[SUCCESS] Security Tools Installation and Configuration script completed."
 
-./05-finalize-and-audit.sh
+./06-finalize-and-audit.sh
 echo "[SUCCESS] Finalization and Audit script completed."
 
 echo ""
@@ -101,6 +104,11 @@ echo "    ** IMPORTANT: TEST SSH ACCESS FROM ANOTHER TERMINAL BEFORE CLOSING THI
 echo ""
 echo "    If you have errors in your public key (config.sh), closing this"
 echo "    terminal will lock you out!"
+echo ""
+echo "    ** IMPORTANT: ON REBOOT, YOU WILL BE PROMPTED FOR THE GRUB PASSWORD. **"
+echo ""
+echo "    Be ready to enter the password you set in 'config.sh' to boot the system."
+echo "    This password is your emergency access to recovery mode if you lose SSH access."
 echo ""
 echo "After confirming SSH works, a system reboot is recommended."
 echo "=========================================================================================="

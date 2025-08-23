@@ -7,7 +7,7 @@ set -o pipefail
 # Load configuration variables
 source "$(dirname "$0")/config.sh"
 
-echo "--- (4/5) Starting Security Tools Installation and Configuration ---"
+echo "--- (5/6) Starting Security Tools Installation and Configuration ---"
 
 # --- Install Packages ---
 

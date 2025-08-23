@@ -2,7 +2,7 @@
 > This configuration is intended **for fresh Ubuntu Server installations only**. Running this on existing production systems will almost certainly cause severe service disruption.
 
 ## Description
-- Sets all **kernel**, **OS** and **OpenSSH Server** configuration for top security.
+- Sets all **kernel**, **OS**, **OpenSSH Server** and **GRUB Bootloader** configuration for top security.
 - Enables automatic security updates (unattended-upgrades)
 - Sets up **comprehensive monitoring**, entirely configured for email-only alerting (zero periodic checks required). Alerts are sent only in case of security issues or threat detection - no periodic emails/summaries.
   - **ClamAV**: Antivirus with weekly system scans
@@ -71,14 +71,34 @@ sudo reboot
 
 ## NOT covered
 
-What the configuration **doesn't cover**:
-- **Physical security** - BIOS/UEFI passwords, disable boot from external devices, blocking all password login (including physical)
-- **Installation choices** - LUKS, ZFS, secure installation media verification
-- **GRUB security** - Bootloader password, secure boot configuration, kernel parameter hardening
-- **LAN security** - Wifi, router configuration, network segmentation
-- **Advanced hardening** - SELinux instead of AppArmor, grsecurity kernel patches, hardware security modules (HSM), container runtime security, MFA for SSH authentication, Ubuntu Livepatch for zero-downtime kernel updates
+This hardening suite focuses on the operating system level. The following areas are critical for a secure system but are not handled by these scripts.
+
+### Out of scope (manual configuration recommended)
+
+- **Physical Security:** BIOS/UEFI passwords, disabling boot from external devices.
+- **Installation Choices:** Full Disk Encryption (LUKS), ZFS, secure installation media verification.
+- **LAN Security:** Wifi, router configuration, network segmentation.
 
 
-In case of **outside-facing services**:
+### Deliberate Design Choices
+- **GRUB Recovery Mode Enabled:** Recovery mode is intentionally left enabled to provide an essential emergency access path. Disabling it would lead to a high risk of permanent lockout, especially on a VPS, if SSH access is lost.
+
+### Possible changes/enhancements
+- MFA for SSH
+- Livepatch
+- SELinux instead of AppArmor
+- grsecurity
+- HSMs
+
+#### In case of **outside-facing services**:
 - **Internet exposure** - IP filtering, geo-blocking, VPN detection
 - **Service-specific hardening** - Web servers, databases, application-level security
+
+## Troubleshooting
+
+### SSH Lockout / Lost Private Key
+
+This is a critical, but recoverable, situation. The GRUB password is your key to recovery.
+
+-   **Physical Server:** At boot, enter the GRUB password, select "Advanced options," and then "Recovery mode." This will give you a root shell to repair the system (e.g., add a new SSH key to `/home/your_user/.ssh/authorized_keys`).
+-   **VPS:** Most providers offer a VNC/KVM console that simulates physical access. Use this to enter the GRUB password and access recovery mode as you would on a physical machine.

@@ -9,7 +9,7 @@ source "$(dirname "$0")/config.sh"
 
 SSHD_CONFIG="/etc/ssh/sshd_config"
 
-echo "--- (3/5) Starting SSH Hardening ---"
+echo "--- (4/6) Starting SSH Hardening ---"
 
 # --- Set up Authorized Keys for Admin User ---
 

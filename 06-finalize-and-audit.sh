@@ -7,7 +7,7 @@ set -o pipefail
 # Load configuration variables
 source "$(dirname "$0")/config.sh"
 
-echo "--- (5/5) Starting Finalization and Audit ---"
+echo "--- (6/6) Starting Finalization and Audit ---"
 
 # --- Install Lynis ---
 

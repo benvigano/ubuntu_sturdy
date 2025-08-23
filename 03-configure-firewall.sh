@@ -7,7 +7,7 @@ set -o pipefail
 # Load configuration variables
 source "$(dirname "$0")/config.sh"
 
-echo "--- (2/5) Starting Firewall Configuration ---"
+echo "--- (3/6) Starting Firewall Configuration ---"
 
 apt-get install -y ufw
 

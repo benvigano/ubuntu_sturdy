@@ -7,7 +7,7 @@ set -o pipefail
 # Load configuration variables
 source "$(dirname "$0")/config.sh"
 
-echo "--- (1/5) Starting Initial System Setup ---"
+echo "--- (1/6) Starting Initial System Setup ---"
 
 # --- System Update and Time Synchronization ---
 
