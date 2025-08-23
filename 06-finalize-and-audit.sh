@@ -9,25 +9,10 @@ source "$(dirname "$0")/config.sh"
 
 echo "--- (6/6) Starting Finalization and Audit ---"
 
-# --- Install Lynis ---
+# --- Install Lynis and AppArmor ---
 
 echo "Installing Lynis, AppArmor, and required profiles..."
 apt-get install -y lynis apparmor apparmor-utils apparmor-profiles apparmor-profiles-extra
-
-# --- Run Lynis Audit ---
-
-echo "Running Lynis security audit... This may take a few minutes."
-# We run the audit in cron mode to reduce interactive elements.
-# The output will be emailed instead of saved to a file.
-LYNIS_REPORT=$(lynis audit system --cronjob 2>&1)
-
-echo "Lynis audit complete."
-echo "Emailing the security audit report..."
-
-# Email the Lynis report for review
-/usr/local/sbin/format_security_mail.sh "INFO" "LYNIS-AUDIT" "Initial security audit completed" "$LYNIS_REPORT"
-
-echo "Lynis audit report has been emailed to ${NOTIFICATION_EMAIL}."
 
 # --- Configure AppArmor ---
 
@@ -171,6 +156,22 @@ echo "AppArmor configuration verified successfully."
 echo "Performing final system cleanup..."
 apt-get autoremove -y
 apt-get clean
+
+# --- Run Final Security Audit ---
+
+echo "Running final Lynis security audit on the hardened system..."
+echo "This may take a few minutes..."
+
+# Run the audit in cron mode to reduce interactive elements
+LYNIS_REPORT=$(lynis audit system --cronjob 2>&1)
+
+echo "Lynis audit complete."
+echo "Emailing the final security audit report..."
+
+# Email the Lynis report for review
+/usr/local/sbin/format_security_mail.sh "INFO" "LYNIS-AUDIT" "Final security audit of hardened system" "$LYNIS_REPORT"
+
+echo "Final security audit report has been emailed to ${NOTIFICATION_EMAIL}."
 
 echo ""
 echo "--- Hardening Process Complete ---"
