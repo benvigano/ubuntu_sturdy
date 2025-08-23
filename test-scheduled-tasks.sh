@@ -56,6 +56,11 @@ if ! test_script "/usr/local/sbin/check_rkhunter_update.sh" "Rkhunter Update"; t
     failures+=("Rkhunter Update")
 fi
 
+# Test time synchronization check
+if ! test_script "/usr/local/sbin/check_time_sync.sh" "Time Sync Check"; then
+    failures+=("Time Sync Check")
+fi
+
 # Test AppArmor notification script
 if ! test_script "/etc/apparmor/notify.d/notify" "AppArmor Notifications"; then
     failures+=("AppArmor Notifications")

@@ -574,5 +574,54 @@ cat > /etc/logrotate.d/postfix-custom <<EOF
 }
 EOF
 
+# --- Configure Time Synchronization Monitoring ---
+
+echo "Configuring chrony (NTP) monitoring..."
+
+# Create a script to check chrony status and send alerts on failure
+cat > /usr/local/sbin/check_time_sync.sh <<'EOF'
+#!/bin/bash
+set -e
+set -o pipefail
+
+# Load persistent configuration
+source /etc/sturdy.conf
+
+# 1. Check if chrony service is active
+if ! systemctl is-active --quiet chrony; then
+    ERROR_MSG="The chrony service is not running. Time is not being synchronized."
+    /usr/local/sbin/format_security_mail.sh "CRITICAL" "TIME-SYNC-FAILURE" "chrony service is down" "$ERROR_MSG"
+    exit 1
+fi
+
+# 2. Check if the system clock is synchronized
+# The "Leap status" should be "Normal"
+if ! chronyc tracking | grep -q "Leap status.*Normal"; then
+    TRACKING_OUTPUT=$(chronyc tracking)
+    ERROR_MSG="System clock is not synchronized with NTP servers.\n\nDetails:\n${TRACKING_OUTPUT}"
+    /usr/local/sbin/format_security_mail.sh "CRITICAL" "TIME-SYNC-FAILURE" "System clock not synchronized" "$ERROR_MSG"
+    exit 1
+fi
+
+# If we reach here, everything is OK.
+exit 0
+EOF
+
+chmod +x /usr/local/sbin/check_time_sync.sh
+
+# Schedule a daily check at START+4h
+# Get base hour from a previously calculated variable to avoid re-parsing
+SYNC_CHECK_HOUR=$((AIDE_HOUR + 4))
+if [ $SYNC_CHECK_HOUR -ge 24 ]; then
+    SYNC_CHECK_HOUR=$((SYNC_CHECK_HOUR - 24))
+fi
+
+cat > /etc/cron.d/check-time-sync <<EOF
+# Daily check to ensure time synchronization is working
+${AIDE_MINUTE} ${SYNC_CHECK_HOUR} * * * root /usr/local/sbin/check_time_sync.sh
+EOF
+
+echo "Time synchronization monitoring configured."
+
 echo "--- Security Tools Configuration Finished ---"
 echo ""

@@ -22,11 +22,12 @@
 ### Scheduled Tasks
 *(All times relative to DAILY_TASKS_START_TIME configured in config.sh)*
 
-**Daily:**
+**Daily (via cron):**
 - START      - File integrity check (AIDE)
 - START+1h   - Security updates (unattended-upgrades)
 - START+2h   - Antivirus signature update (ClamAV)
 - START+3h   - Rootkit check (rkhunter)
+- START+4h   - Time synchronization check (chrony)
 
 **Weekly:**
 - Sunday   - START      - Full system antivirus scan (ClamAV)
