@@ -41,6 +41,7 @@ postconf -e "smtp_sasl_security_options = noanonymous"
 postconf -e "smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt"
 postconf -e "smtp_use_tls = yes"
 postconf -e "relayhost = [smtp.gmail.com]:587"
+postconf -e "smtpd_banner = \$myhostname ESMTP"
 
 systemctl restart postfix
 
@@ -83,6 +84,13 @@ fi
 # Check SASL password database exists
 if [[ ! -f "/etc/postfix/sasl_passwd.db" ]]; then
     postfix_failures+=("SASL password database missing: /etc/postfix/sasl_passwd.db (postmap may have failed)")
+fi
+
+# Check SMTP banner is hardened (information disclosure prevention)
+actual_banner=$(postconf -h smtpd_banner 2>/dev/null || echo "FAILED")
+expected_banner="\$myhostname ESMTP"
+if [[ "$actual_banner" != "$expected_banner" ]]; then
+    postfix_failures+=("SMTP banner not hardened: expected '$expected_banner', got '$actual_banner'")
 fi
 
 if [ ${#postfix_failures[@]} -gt 0 ]; then
