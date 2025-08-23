@@ -300,7 +300,19 @@ rkhunter --update
 rkhunter --propupd
 
 # Configure rkhunter to email on warnings and run via cron
-sed -i "s/^MAILTO=.*/MAILTO=\"${NOTIFICATION_EMAIL}\"/" /etc/rkhunter.conf
+# Use sudo bash -c instead of sudo -s to avoid interactive shell issues with nologin
+sudo bash -c '
+CONFIG_FILE="/etc/rkhunter.conf"
+NOTIFICATION_EMAIL="'"${NOTIFICATION_EMAIL}"'"
+EXPECTED_LINE="MAILTO=\"${NOTIFICATION_EMAIL}\""
+
+# 1. Delete any existing MAILTO line to prevent duplicates or conflicts.
+sed -i "/^#?\s*MAILTO=/d" "${CONFIG_FILE}"
+
+# 2. Append the correct MAILTO line to the end of the file.
+echo "${EXPECTED_LINE}" >> "${CONFIG_FILE}"
+'
+
 sed -i "s/^CRON_DAILY_RUN=.*/CRON_DAILY_RUN=\"true\"/" /etc/default/rkhunter
 sed -i "s/^APT_AUTOGEN=.*/APT_AUTOGEN=\"true\"/" /etc/default/rkhunter
 
