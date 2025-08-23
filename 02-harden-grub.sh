@@ -44,8 +44,8 @@ cat > "${GRUB_SECURITY_FILE}" <<'EOF'
 #!/bin/sh
 cat << 'EOL'
 if [ "${grub_platform}" == "efi" ]; then
-    set superusers="grub_admin"
-    password_pbkdf2 grub_admin ${GRUB_PASSWORD_HASH}
+    set superusers="${GRUB_SUPERUSER}"
+    password_pbkdf2 ${GRUB_SUPERUSER} ${GRUB_PASSWORD_HASH}
 fi
 EOL
 EOF
@@ -69,12 +69,12 @@ GRUB_CONFIG_FILE="/boot/grub/grub.cfg"
 grub_failures=()
 
 # Check that the superuser is set in the final GRUB config
-if ! grep -q "set superusers=\"grub_admin\"" "${GRUB_CONFIG_FILE}"; then
+if ! grep -q "set superusers=\"${GRUB_SUPERUSER}\"" "${GRUB_CONFIG_FILE}"; then
     grub_failures+=("GRUB superuser was not set in ${GRUB_CONFIG_FILE}")
 fi
 
 # Check that the password is set in the final GRUB config
-if ! grep -q "password_pbkdf2 grub_admin" "${GRUB_CONFIG_FILE}"; then
+if ! grep -q "password_pbkdf2 ${GRUB_SUPERUSER}" "${GRUB_CONFIG_FILE}"; then
     grub_failures+=("GRUB password was not set in ${GRUB_CONFIG_FILE}")
 fi
 
