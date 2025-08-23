@@ -11,8 +11,8 @@ echo "--- (6/6) Starting Finalization and Audit ---"
 
 # --- Install Lynis ---
 
-echo "Installing Lynis and AppArmor utilities..."
-apt-get install -y lynis apparmor-utils apparmor-profiles
+echo "Installing Lynis, AppArmor, and required profiles..."
+apt-get install -y lynis apparmor apparmor-utils apparmor-profiles apparmor-profiles-extra
 
 # --- Run Lynis Audit ---
 
@@ -68,23 +68,48 @@ if ! aa-status | grep -q "usr.sbin.postfix" 2>/dev/null; then
     done
 fi
 
-# Set up audit-based violation detection
-cat > /usr/local/sbin/apparmor-alert.sh <<'EOF'
+# Ensure profiles are loaded
+aa-status || {
+    echo "Loading AppArmor profiles..."
+    systemctl restart apparmor
+}
+
+# Wait for profiles to load
+sleep 2
+
+# Configure AppArmor to use our email notification system
+echo "Setting up AppArmor notifications..."
+
+# Create notification script
+mkdir -p /etc/apparmor/notify.d/
+cat > /etc/apparmor/notify.d/notify <<'EOF'
 #!/bin/bash
 set -e
 set -o pipefail
 
-# Watch audit log for AppArmor DENIED messages
-/usr/bin/ausearch -ts recent -m AVC 2>/dev/null | grep 'apparmor="DENIED"' && {
-    VIOLATIONS=$(/usr/bin/ausearch -ts recent -m AVC 2>/dev/null)
-    /usr/local/sbin/format_security_mail.sh "WARNING" "APPARMOR-VIOLATION" "AppArmor access violation detected" "$VIOLATIONS"
-}
+# $1 will be the event type (e.g., "DENIED")
+# $2 will be the full message
+/usr/local/sbin/format_security_mail.sh "WARNING" "APPARMOR-${1}" "AppArmor ${1} event detected" "${2}"
 EOF
 
-chmod +x /usr/local/sbin/apparmor-alert.sh
+chmod +x /etc/apparmor/notify.d/notify
 
-# Add to audit rules to trigger the script
-echo "-w /var/log/audit/audit.log -p r -k apparmor_violations" >> /etc/audit/rules.d/10-hardening.rules
+# Configure AppArmor notification settings
+cat > /etc/apparmor/notify.conf <<EOF
+# Enable notifications for all events
+notify=yes
+
+# Use our custom notification script
+notify_handler=/etc/apparmor/notify.d/notify
+
+# Log all types of events
+debug_events=yes
+denied_events=yes
+error_events=yes
+EOF
+
+# Restart AppArmor to apply notification settings
+systemctl restart apparmor
 
 echo "AppArmor configured in permanent complain mode with violation alerts."
 
@@ -114,14 +139,17 @@ if [[ "$profile_count" == "0" ]]; then
     apparmor_failures+=("No AppArmor profiles are loaded")
 fi
 
-# Check alert script exists and is executable
-if [[ ! -x "/usr/local/sbin/apparmor-alert.sh" ]]; then
-    apparmor_failures+=("AppArmor alert script missing or not executable")
+# Check notification configuration
+if [[ ! -x "/etc/apparmor/notify.d/notify" ]]; then
+    apparmor_failures+=("AppArmor notification script missing or not executable")
 fi
 
-# Check audit rule for AppArmor violations is present
-if ! auditctl -l | grep -q "apparmor_violations"; then
-    apparmor_failures+=("AppArmor audit rule not loaded")
+if ! grep -q "^notify=yes" /etc/apparmor/notify.conf; then
+    apparmor_failures+=("AppArmor notifications not enabled in notify.conf")
+fi
+
+if ! grep -q "^notify_handler=" /etc/apparmor/notify.conf; then
+    apparmor_failures+=("AppArmor notification handler not configured in notify.conf")
 fi
 
 if [ ${#apparmor_failures[@]} -gt 0 ]; then
