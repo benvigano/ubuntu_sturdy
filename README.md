@@ -33,89 +33,67 @@
 - Saturday - START      - Rootkit database update (rkhunter)
 - Saturday - START+1h   - Intrusion prevention update (fail2ban)
 
-*Note: Tasks are intentionally spread out to avoid resource contention.*
-
-## Features
--   **Idempotent** - Safe to re-run multiple times without side effects in case something breaks.
-
+*Note: Tasks are intentionally spread out to avoid resource contention.
 
 ## Run
+> [!TIP]  
+> All scripts are **idempotent**, which means they are safe to re-run multiple times without side effects in case something goes wrong.
 
-### 0. Get a fresh OS installation
-Install Ubuntu Server.
+> [!NOTE]
+>The following operational variables **will be stored** in a persistent configuration file (`/etc/sturdy.conf`) as they are needed by scheduled tasks:
+>- NOTIFICATION_EMAIL
+>- GMAIL_ADDRESS
+>- SERVER_NAME
+>- SSH_PORT
+>- ADMIN_USER
 
-### 1. Clone the Repository
 ```bash
-git clone https://github.com/benvigano/sturdy_ubuntu.git
+git clone https://github.com/benvigano/sturdy_ubuntu.git`
 cd sturdy_ubuntu
+nano config.sh  # Fill in your variables
 ```
 
-### 2. Configure Settings
 
-Fill in the `config.sh` file.
 
-The following non-sensitive, operational variables **will be stored** in a persistent configuration file (`/etc/sturdy.conf`) as they are needed by scheduled tasks:
-- NOTIFICATION_EMAIL
-- GMAIL_ADDRESS
-- SERVER_NAME
-- SSH_PORT
-- ADMIN_USER
-
-If your user doesn't have sudo privileges, add them to the sudo group first:
 ```bash
+# If your user is not sudo:
 sudo usermod -aG sudo your_username
 ```
 
-### 3. Make Scripts Executable
-
-From within the `ubuntu-hardening` directory, run the following command:
-
 ```bash
+# Make scripts exectuable
 chmod +x *.sh
 ```
 
-### 4. Run the Scripts
-
-Execute the main script as root:
-
 ```bash
+# Run the configuration
 sudo ./run-all.sh
-```
 
-### 5. Review Lynis audit report
-At the end of the process, a Lynis audit report sent via email.
+# Review Lynis audit report sent via email
 
-### 6. Secure Access Credentials
+# Store credentials you set in the config.sh file in a safe place:
+# 1. ssh key corresponding to the public key you set
+# 2. ssh port number
+# 3. GRUB superuser user name and password
 
-⚠️ *Loosing **both** GRUB credentials **and** ssh keys will permanently lock you out of your your system.*
+#(IMPORTANT! Loosing both GRUB credentials and ssh keys will permanently lock you out of your your system!)
 
-1. **Store credentials:**
-   - SSH port number
-   - SSH private key correspondant to the public key used in setup
-   - GRUB superuser name and password
+# Delete config file
+shred -u config.sh
 
-2. **Remove Temporary Configuration File:**
-   ```bash
-   shred -u config.sh
-   ```
-   This securely deletes the initial configuration file containing sensitive information.
-
-### 7. Reboot the system
-
-```bash
+# Reboot the system
 sudo reboot
 ```
 
-
 ## NOT covered
 
-### Because not automatable (but manual setup **highly  recommended**)
+### Out of scope (but manual setup **highly  recommended**)
 - **Physical Security:** BIOS/UEFI passwords, disabling boot from external devices etc.
 - **Installation Choices:** Full Disk Encryption (LUKS), ZFS, secure installation media verification etc.
 - **LAN Security:** Wifi, router configuration, network segmentation.
 - **Backup Strategy:** Retention policies, versioning etc.
 
-### For Design Choices
+### Design Choices
 - **Disabling GRUB Recovery Mode:** Recovery mode is intentionally left enabled (password protected) as disabling it would cause permanent lockout in case access to the system is accidentally lost (lost ssh key, removed user from sudoers...).
 
 ### Possible changes/enhancements
