@@ -68,22 +68,25 @@ if ! aa-status | grep -q "usr.sbin.postfix" 2>/dev/null; then
     done
 fi
 
-# Set up monitoring for AppArmor violations
-cat > /etc/cron.d/apparmor-violations <<EOF
-# Daily AppArmor violation check
-MAILTO="${NOTIFICATION_EMAIL}"
-0 6 * * * root /usr/bin/aa-logprof --help >/dev/null 2>&1 && /usr/sbin/aa-logprof --update --dir /etc/apparmor.d/ --noprompt || true
+# Set up audit-based violation detection
+cat > /usr/local/sbin/apparmor-alert.sh <<'EOF'
+#!/bin/bash
+set -e
+set -o pipefail
+
+# Watch audit log for AppArmor DENIED messages
+/usr/bin/ausearch -ts recent -m AVC 2>/dev/null | grep 'apparmor="DENIED"' && {
+    VIOLATIONS=$(/usr/bin/ausearch -ts recent -m AVC 2>/dev/null)
+    /usr/local/sbin/format_security_mail.sh "WARNING" "APPARMOR-VIOLATION" "AppArmor access violation detected" "$VIOLATIONS"
+}
 EOF
 
-# After a week, switch to enforce mode (more restrictive)
-# This gives time to identify any legitimate violations first
-cat > /etc/cron.d/apparmor-enforce <<'EOF'
-# Switch to enforce mode after 7 days (runs once)
-MAILTO="${NOTIFICATION_EMAIL}"
-0 7 * * 7 root for profile in $(aa-status --complain 2>/dev/null | grep -E "(sshd|postfix)" | awk '{print $1}' || true); do aa-enforce "$profile" 2>/dev/null || true; done; /bin/rm -f /etc/cron.d/apparmor-enforce
-EOF
+chmod +x /usr/local/sbin/apparmor-alert.sh
 
-echo "AppArmor configured. Profiles will switch to enforce mode after 7 days."
+# Add to audit rules to trigger the script
+echo "-w /var/log/audit/audit.log -p r -k apparmor_violations" >> /etc/audit/rules.d/10-hardening.rules
+
+echo "AppArmor configured in permanent complain mode with violation alerts."
 
 # --- Verify AppArmor Configuration ---
 
@@ -111,13 +114,14 @@ if [[ "$profile_count" == "0" ]]; then
     apparmor_failures+=("No AppArmor profiles are loaded")
 fi
 
-# Check monitoring cron jobs exist
-if [[ ! -f "/etc/cron.d/apparmor-violations" ]]; then
-    apparmor_failures+=("AppArmor violations monitoring cron job missing")
+# Check alert script exists and is executable
+if [[ ! -x "/usr/local/sbin/apparmor-alert.sh" ]]; then
+    apparmor_failures+=("AppArmor alert script missing or not executable")
 fi
 
-if [[ ! -f "/etc/cron.d/apparmor-enforce" ]]; then
-    apparmor_failures+=("AppArmor enforce mode cron job missing")
+# Check audit rule for AppArmor violations is present
+if ! auditctl -l | grep -q "apparmor_violations"; then
+    apparmor_failures+=("AppArmor audit rule not loaded")
 fi
 
 if [ ${#apparmor_failures[@]} -gt 0 ]; then

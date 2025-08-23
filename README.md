@@ -19,6 +19,22 @@
   - Automated log rotation and cleanup
   - Weekly security tool database updates
 
+### Scheduled Tasks
+*(All times relative to DAILY_TASKS_START_TIME configured in config.sh)*
+
+**Daily:**
+- START      - File integrity check (AIDE)
+- START+1h   - Security updates (unattended-upgrades)
+- START+2h   - Antivirus signature update (ClamAV)
+- START+3h   - Rootkit check (rkhunter)
+
+**Weekly:**
+- Sunday START+4h   - Full system antivirus scan (ClamAV)
+- Monday START+1h   - Rootkit database update (rkhunter)
+- Monday START+2h   - Intrusion prevention update (fail2ban)
+
+*Note: Tasks are intentionally spread out to avoid resource contention.*
+
 ## Features
 -   **Idempotent** - Safe to re-run multiple times without side effects in case something breaks.
 
@@ -90,6 +106,7 @@ sudo reboot
 - **Physical Security:** BIOS/UEFI passwords, disabling boot from external devices etc.
 - **Installation Choices:** Full Disk Encryption (LUKS), ZFS, secure installation media verification etc.
 - **LAN Security:** Wifi, router configuration, network segmentation.
+- **Backup Strategy:** Retention policies, versioning etc.
 
 ### For Design Choices
 - **Disabling GRUB Recovery Mode:** Recovery mode is intentionally left enabled (password protected) as disabling it would cause permanent lockout in case access to the system is accidentally lost (lost ssh key, removed user from sudoers...).

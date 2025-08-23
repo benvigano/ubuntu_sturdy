@@ -199,12 +199,12 @@ EOF
 
 chmod +x /usr/local/sbin/check_aide.sh
 
-# Set up a cron job to run a daily check
+# Calculate AIDE check time (START)
 AIDE_HOUR=$(echo "${DAILY_TASKS_START_TIME}" | cut -d: -f1)
 AIDE_MINUTE=$(echo "${DAILY_TASKS_START_TIME}" | cut -d: -f2)
 # Idempotent cron job creation
 cat > /etc/cron.d/aide <<EOF
-# AIDE daily integrity check
+# AIDE daily integrity check (START)
 ${AIDE_MINUTE} ${AIDE_HOUR} * * * root /usr/local/sbin/check_aide.sh
 EOF
 
@@ -238,11 +238,17 @@ EOF
 
 chmod +x /usr/local/sbin/check_clamav_update.sh
 
+# Calculate ClamAV update time (START+2h)
+CLAM_UPDATE_HOUR=$((AIDE_HOUR + 2))
+if [ $CLAM_UPDATE_HOUR -ge 24 ]; then
+    CLAM_UPDATE_HOUR=$((CLAM_UPDATE_HOUR - 24))
+fi
+
 # Add daily signature update check
 cat > /etc/cron.d/clamav-update <<EOF
-# Daily ClamAV signature update check
+# Daily ClamAV signature update check (START+2h)
 MAILTO="${NOTIFICATION_EMAIL}"
-0 ${CLAM_HOUR} * * * root /usr/local/sbin/check_clamav_update.sh
+${AIDE_MINUTE} ${CLAM_UPDATE_HOUR} * * * root /usr/local/sbin/check_clamav_update.sh
 EOF
 
 # Create ClamAV scan wrapper
@@ -265,22 +271,10 @@ EOF
 
 chmod +x /usr/local/sbin/run_clamscan.sh
 
-# Set up a cron job for a weekly scan
-# Schedule 30 minutes after the base time
-CLAM_HOUR=$(echo "${DAILY_TASKS_START_TIME}" | cut -d: -f1)
-CLAM_MINUTE=$(echo "${DAILY_TASKS_START_TIME}" | cut -d: -f2)
-CLAM_MINUTE=$((CLAM_MINUTE + 30))
-if [ $CLAM_MINUTE -ge 60 ]; then
-    CLAM_MINUTE=$((CLAM_MINUTE - 60))
-    CLAM_HOUR=$((CLAM_HOUR + 1))
-    if [ $CLAM_HOUR -ge 24 ]; then
-        CLAM_HOUR=$((CLAM_HOUR - 24))
-    fi
-fi
-# Idempotent cron job creation
+# Set up weekly scan at base time on Sunday
 cat > /etc/cron.d/clamav-scan <<EOF
-# Weekly ClamAV scan
-${CLAM_MINUTE} ${CLAM_HOUR} * * 0 root /usr/local/sbin/run_clamscan.sh
+# Weekly ClamAV scan (Sunday START)
+${AIDE_MINUTE} ${AIDE_HOUR} * * 0 root /usr/local/sbin/run_clamscan.sh
 EOF
 
 # --- Configure rkhunter ---
@@ -390,9 +384,9 @@ EOF
 chmod +x /usr/local/sbin/check_rkhunter_update.sh
 
 cat > /etc/cron.d/rkhunter-update <<EOF
-# Weekly rkhunter package and property update
+# Weekly rkhunter package and property update (Saturday START)
 MAILTO="${NOTIFICATION_EMAIL}"
-0 3 * * 1 root /usr/local/sbin/check_rkhunter_update.sh
+${AIDE_MINUTE} ${AIDE_HOUR} * * 6 root /usr/local/sbin/check_rkhunter_update.sh
 EOF
 
 # --- Configure fail2ban ---
@@ -475,10 +469,16 @@ fi
 echo "fail2ban configuration verified successfully."
 
 # Set up automated fail2ban updates (filter patterns)
+# Calculate fail2ban update time (Saturday START+1h)
+FAIL2BAN_UPDATE_HOUR=$((AIDE_HOUR + 1))
+if [ $FAIL2BAN_UPDATE_HOUR -ge 24 ]; then
+    FAIL2BAN_UPDATE_HOUR=$((FAIL2BAN_UPDATE_HOUR - 24))
+fi
+
 cat > /etc/cron.d/fail2ban-update <<EOF
-# Weekly fail2ban update and restart
+# Weekly fail2ban update and restart (Saturday START+1h)
 MAILTO="${NOTIFICATION_EMAIL}"
-30 3 * * 1 root /usr/bin/apt-get update && /usr/bin/apt-get install --only-upgrade fail2ban -y && /usr/bin/systemctl restart fail2ban
+${AIDE_MINUTE} ${FAIL2BAN_UPDATE_HOUR} * * 6 root /usr/bin/apt-get update && /usr/bin/apt-get install --only-upgrade fail2ban -y && /usr/bin/systemctl restart fail2ban
 EOF
 
 # --- Configure Log Rotation ---
