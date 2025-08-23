@@ -42,24 +42,102 @@ else
     echo "UID 0 check passed. Only 'root' has UID 0."
 fi
 
-# --- Admin User Access Control ---
+# --- Local Access Control ---
 
-echo "Disabling local console login for '${ADMIN_USER}' to enforce SSH-only access..."
+echo "Disabling ALL local TTY/console login to enforce SSH-only access..."
 
 # Ensure pam_access.so is enforced for login. This makes the system use /etc/security/access.conf.
-# The regex handles various spacing. We add it before the session block for convention.
-if ! grep -q "account[[:space:]]\\{1,\\}required[[:space:]]\\{1,\\}pam_access.so" /etc/pam.d/login; then
-    sed -i '/# sessions are required/i account     required      pam_access.so' /etc/pam.d/login
+if ! grep -q "^account[[:space:]]\\{1,\\}required[[:space:]]\\{1,\\}pam_access.so" /etc/pam.d/login; then
+    # Check if it exists but is commented out
+    if grep -q "^#[[:space:]]*account[[:space:]]\\{1,\\}required[[:space:]]\\{1,\\}pam_access.so" /etc/pam.d/login; then
+        # Uncomment the existing line
+        sed -i 's/^#[[:space:]]*account[[:space:]]\{1,\}required[[:space:]]\{1,\}pam_access.so/account     required      pam_access.so/' /etc/pam.d/login
+        echo "Uncommented existing pam_access.so line in /etc/pam.d/login"
+    else
+        # Add a new line after the common-auth include
+        sed -i '/^@include common-auth/a account     required      pam_access.so' /etc/pam.d/login
+        echo "Added pam_access.so line to /etc/pam.d/login"
+    fi
 fi
 
-# Add rule to deny local login for the admin user.
-# This is idempotent: it only adds the rule if it doesn't already exist for the user.
-ACCESS_RULE="-: (${ADMIN_USER}) : LOCAL"
+# Add rule to deny ALL users from local TTY/console login.
+ACCESS_RULE="-: ALL : LOCAL"
 if ! grep -qF -- "${ACCESS_RULE}" /etc/security/access.conf; then
     echo "" >> /etc/security/access.conf
-    echo "# Deny the admin user from local TTY login to enforce SSH-only access" >> /etc/security/access.conf
+    echo "# Deny ALL users from local TTY/console login to enforce SSH-only access" >> /etc/security/access.conf
     echo "${ACCESS_RULE}" >> /etc/security/access.conf
 fi
+
+# --- Verify PAM Access Configuration ---
+
+echo "Verifying PAM access control configuration..."
+
+# Check that pam_access.so is actually enabled (not commented out) in /etc/pam.d/login
+if ! grep -q "^account[[:space:]]\\{1,\\}required[[:space:]]\\{1,\\}pam_access.so" /etc/pam.d/login; then
+    echo "ERROR: pam_access.so is not properly enabled in /etc/pam.d/login"
+    echo "Expected to find uncommented line: account required pam_access.so"
+    echo "Current pam_access lines in /etc/pam.d/login:"
+    grep -n "pam_access" /etc/pam.d/login || echo "  (none found)"
+    echo "This is a critical security configuration failure. Aborting."
+    exit 1
+fi
+
+# Verify the access rule was added correctly
+if ! grep -qF -- "${ACCESS_RULE}" /etc/security/access.conf; then
+    echo "ERROR: Access control rule was not added to /etc/security/access.conf"
+    echo "Expected rule: ${ACCESS_RULE}"
+    echo "This is a critical security configuration failure. Aborting."
+    exit 1
+fi
+
+# Check that pam_access.so module file exists
+if ! find /lib* /usr/lib* -name "pam_access.so" 2>/dev/null | grep -q "pam_access.so"; then
+    echo "ERROR: pam_access.so module not found on system"
+    echo "The PAM access module may not be installed properly."
+    echo "This is a critical security configuration failure. Aborting."
+    exit 1
+fi
+
+echo "PAM access control configuration verified successfully."
+echo "ALL users are now restricted from local TTY/console login. SSH is the only access method."
+
+# --- Disable Console Login Prompts ---
+
+echo "Disabling TTY/console login prompts entirely..."
+
+# Disable getty services for all standard TTYs (tty1-tty6)
+# This prevents login prompts from appearing on virtual consoles
+for tty_num in {1..6}; do
+    if systemctl is-enabled "getty@tty${tty_num}.service" >/dev/null 2>&1; then
+        systemctl disable "getty@tty${tty_num}.service"
+        systemctl stop "getty@tty${tty_num}.service" 2>/dev/null || true
+        echo "Disabled getty@tty${tty_num}.service"
+    fi
+done
+
+# Disable console-getty service if it exists
+# This prevents login prompts from appearing on the main console
+if systemctl is-enabled "console-getty.service" >/dev/null 2>&1; then
+    systemctl disable "console-getty.service"
+    systemctl stop "console-getty.service" 2>/dev/null || true
+    echo "Disabled console-getty.service"
+fi
+
+# Configure systemd to not automatically spawn virtual terminals
+# This prevents new TTYs from being created automatically
+if ! grep -q "^NAutoVTs=0" /etc/systemd/logind.conf; then
+    if grep -q "^#NAutoVTs=" /etc/systemd/logind.conf; then
+        # Uncomment and set to 0
+        sed -i 's/^#NAutoVTs=.*/NAutoVTs=0/' /etc/systemd/logind.conf
+    else
+        # Add the setting
+        echo "NAutoVTs=0" >> /etc/systemd/logind.conf
+    fi
+    echo "Configured systemd to disable automatic virtual terminal spawning"
+fi
+
+echo "Console login prompts have been completely disabled."
+echo "The system is now SSH-only with no local login interface."
 
 # --- Install auditd ---
 
