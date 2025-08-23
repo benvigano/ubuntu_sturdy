@@ -61,6 +61,11 @@ if ! test_script "/usr/local/sbin/check_time_sync.sh" "Time Sync Check"; then
     failures+=("Time Sync Check")
 fi
 
+# Test kernel module integrity check
+if ! test_script "/usr/local/sbin/check_kernel_modules.sh" "Kernel Module Check"; then
+    failures+=("Kernel Module Check")
+fi
+
 # Test AppArmor notification script
 if ! test_script "/etc/apparmor/notify.d/notify" "AppArmor Notifications"; then
     failures+=("AppArmor Notifications")

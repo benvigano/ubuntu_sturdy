@@ -623,5 +623,69 @@ EOF
 
 echo "Time synchronization monitoring configured."
 
+# --- Kernel Module Integrity Monitoring ---
+
+echo "Configuring kernel module integrity monitoring..."
+
+# Create a script to find kernel modules not installed by a package (potential rootkits)
+cat > /usr/local/sbin/check_kernel_modules.sh <<'EOF'
+#!/bin/bash
+set -e
+set -o pipefail
+
+# Load persistent configuration
+source /etc/sturdy.conf
+
+# Get a list of all currently loaded kernel modules (name only)
+loaded_modules=$(lsmod | awk 'NR>1 {print $1}')
+
+unmanaged_modules=()
+
+for module in $loaded_modules; do
+    # Find the file path of the module
+    module_path=$(modinfo -n "$module" 2>/dev/null || true)
+
+    if [[ -z "$module_path" ]]; then
+        # Could not find path for module, skip it (might be built-in)
+        continue
+    fi
+
+    # Check which package owns the module file
+    # dpkg -S returns 0 if it finds the package, 1 otherwise.
+    if ! dpkg -S "$module_path" >/dev/null 2>&1; then
+        unmanaged_modules+=("$module ($module_path)")
+    fi
+done
+
+if [ ${#unmanaged_modules[@]} -gt 0 ]; then
+    # Found one or more modules not managed by a package. This is a major red flag.
+    ERROR_MSG="One or more loaded kernel modules are not managed by the package manager.\n"
+    ERROR_MSG+="This could be a sign of a rootkit.\n\n"
+    ERROR_MSG+="Unmanaged Modules:\n"
+    for item in "${unmanaged_modules[@]}"; do
+        ERROR_MSG+="- ${item}\n"
+    done
+    
+    /usr/local/sbin/format_security_mail.sh "CRITICAL" "KERNEL-MODULE-ALERT" "Unmanaged kernel module detected" "$ERROR_MSG"
+fi
+
+exit 0
+EOF
+
+chmod +x /usr/local/sbin/check_kernel_modules.sh
+
+# Schedule a daily check at START+5h
+MODULE_CHECK_HOUR=$((AIDE_HOUR + 5))
+if [ $MODULE_CHECK_HOUR -ge 24 ]; then
+    MODULE_CHECK_HOUR=$((MODULE_CHECK_HOUR - 24))
+fi
+
+cat > /etc/cron.d/check-kernel-modules <<EOF
+# Daily check for unmanaged kernel modules
+${AIDE_MINUTE} ${MODULE_CHECK_HOUR} * * * root /usr/local/sbin/check_kernel_modules.sh
+EOF
+
+echo "Kernel module integrity monitoring configured."
+
 echo "--- Security Tools Configuration Finished ---"
 echo ""
