@@ -13,7 +13,7 @@ echo "--- (5/6) Starting Security Tools Installation and Configuration ---"
 
 echo "Installing security packages..."
 export DEBIAN_FRONTEND=noninteractive
-apt-get install -y postfix mailutils aide aide-common clamav clamav-daemon rkhunter fail2ban
+apt-get install -y postfix mailutils aide aide-common clamav clamav-daemon rkhunter fail2ban debsums
 
 # --- Configure Postfix for Gmail Relay ---
 
@@ -682,7 +682,42 @@ EOF
 
 chmod +x /usr/local/sbin/check_kernel_modules.sh
 
-# Schedule a daily check at START+5h
+# --- Create debsums integrity checking script ---
+echo "Creating debsums integrity checking script..."
+
+cat > /usr/local/sbin/check_debsums.sh <<'EOF'
+#!/bin/bash
+set -e
+set -o pipefail
+
+# Load persistent configuration
+source /etc/sturdy.conf
+
+# Run debsums to check package file integrity
+# -s = silent mode (only report errors)
+# -a = check all packages
+DEBSUMS_OUTPUT=$(debsums -s -a 2>&1) || {
+    DEBSUMS_EXIT_CODE=$?
+    
+    if [ $DEBSUMS_EXIT_CODE -eq 2 ]; then
+        # Exit code 2 means some files have changed
+        ERROR_MSG="Package file integrity check detected modified files!\n\nThis could indicate:\n- Configuration file changes (normal)\n- Package corruption\n- Potential security compromise\n\nModified files:\n${DEBSUMS_OUTPUT}"
+        /usr/local/sbin/format_security_mail.sh "WARNING" "DEBSUMS-INTEGRITY" "File integrity violations detected" "$ERROR_MSG"
+    else
+        # Other exit codes indicate errors in debsums itself
+        ERROR_MSG="debsums integrity check failed to run!\n\nExit code: ${DEBSUMS_EXIT_CODE}\nError output:\n${DEBSUMS_OUTPUT}"
+        /usr/local/sbin/format_security_mail.sh "CRITICAL" "DEBSUMS-FAILED" "File integrity check failed" "$ERROR_MSG"
+    fi
+    exit $DEBSUMS_EXIT_CODE
+}
+
+# If we get here, all files passed integrity check (exit code 0)
+exit 0
+EOF
+
+chmod +x /usr/local/sbin/check_debsums.sh
+
+# Schedule kernel module check at START+5h
 MODULE_CHECK_HOUR=$((AIDE_HOUR + 5))
 if [ $MODULE_CHECK_HOUR -ge 24 ]; then
     MODULE_CHECK_HOUR=$((MODULE_CHECK_HOUR - 24))
@@ -691,6 +726,17 @@ fi
 cat > /etc/cron.d/check-kernel-modules <<EOF
 # Daily check for unmanaged kernel modules
 ${AIDE_MINUTE} ${MODULE_CHECK_HOUR} * * * root /usr/local/sbin/check_kernel_modules.sh
+EOF
+
+# Schedule debsums check at START+6h
+DEBSUMS_CHECK_HOUR=$((AIDE_HOUR + 6))
+if [ $DEBSUMS_CHECK_HOUR -ge 24 ]; then
+    DEBSUMS_CHECK_HOUR=$((DEBSUMS_CHECK_HOUR - 24))
+fi
+
+cat > /etc/cron.d/check-debsums <<EOF
+# Daily package file integrity check
+${AIDE_MINUTE} ${DEBSUMS_CHECK_HOUR} * * * root /usr/local/sbin/check_debsums.sh
 EOF
 
 echo "Kernel module integrity monitoring configured."

@@ -29,6 +29,7 @@
 - START+3h   - Rootkit check (rkhunter)
 - START+4h   - Time synchronization check (chrony)
 - START+5h   - Kernel module integrity check
+- START+6h   - Package file integrity check (debsums)
 
 **Weekly (via cron):**
 - Sunday   - START      - Full system antivirus scan (ClamAV)

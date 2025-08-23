@@ -134,6 +134,18 @@ else
     echo "unattended-upgrades service test passed"
 fi
 
+# Test debsums integrity checking script
+echo "Testing debsums script..."
+if [ ! -f "/usr/local/sbin/check_debsums.sh" ]; then
+    failures+=("check_debsums.sh script not found")
+elif [ ! -x "/usr/local/sbin/check_debsums.sh" ]; then
+    failures+=("check_debsums.sh script not executable")
+elif ! command -v debsums >/dev/null 2>&1; then
+    failures+=("debsums command not available")
+else
+    echo "debsums script test passed"
+fi
+
 # Report results
 if [ ${#failures[@]} -gt 0 ]; then
     echo "ERROR: Some scheduled tasks failed testing:"
