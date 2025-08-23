@@ -93,6 +93,15 @@ echo "[SUCCESS] Security Tools Installation and Configuration script completed."
 ./06-finalize-and-audit.sh
 echo "[SUCCESS] Finalization and Audit script completed."
 
+# Test all scheduled tasks
+echo "Testing scheduled tasks..."
+chmod +x "$(dirname "$0")/test-scheduled-tasks.sh"
+if ! "$(dirname "$0")/test-scheduled-tasks.sh"; then
+    echo "ERROR: Some scheduled tasks failed testing. Please check the output above."
+    exit 1
+fi
+echo "[SUCCESS] All scheduled tasks tested successfully."
+
 echo ""
 echo "=========================================================================================="
 echo "                      ALL HARDENING SCRIPTS COMPLETED SUCCESSFULLY"
