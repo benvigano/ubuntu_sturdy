@@ -96,7 +96,7 @@ sudo reboot
 ## NOT covered
 
 ### Out of scope (but manual setup **highly  recommended**)
-- **Physical Security:** BIOS/UEFI passwords, disabling boot from external devices etc.
+- **Physical Security:** BIOS/UEFI passwords, secure boot, disabling boot from external devices etc.
 - **Installation Choices:** Full Disk Encryption (LUKS), ZFS, secure installation media verification etc.
 - **LAN Security:** Wifi, router configuration, network segmentation.
 - **Backup Strategy:** Retention policies, versioning etc.
