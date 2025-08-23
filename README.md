@@ -64,9 +64,9 @@ At the end of the process, a Lynis audit report sent via email.
 
 ### 6. Secure Access Credentials
 
-After verifying that all services work correctly, securely store these critical access credentials:
+⚠️ *Loosing **both** GRUB credentials **and** ssh keys will permanently lock you out of your your system.*
 
-1. **System Access Information:**
+1. **Store credentials:**
    - SSH port number
    - SSH private key correspondant to the public key used in setup
    - GRUB superuser name and password
@@ -76,8 +76,6 @@ After verifying that all services work correctly, securely store these critical 
    shred -u config.sh
    ```
    This securely deletes the configuration file containing sensitive information.
-
-⚠️ Without these credentials, you may permanently lose access to your system.
 
 ### 7. Reboot the system
 
@@ -107,7 +105,19 @@ sudo reboot
 - Service-specific hardening - web servers, databases, application-level security
 
 ## Troubleshooting
-
+*(Requires GRUB access)*
 ### Case: SSH Lockout / Lost Private Key
 -   **Physical Server:** At boot, enter the GRUB password, select "Advanced options," and then "Recovery mode." This will give you a root shell to repair the system (e.g., add a new SSH key to `/home/your_user/.ssh/authorized_keys`).
 -   **VPS:** Most providers offer a VNC/KVM console that simulates physical access. Use this to enter the GRUB password and access recovery mode as you would on a physical machine.
+
+### Case: Lost GRUB Credentials / Have SSH Access
+*(Requires ssh access and sudo)*
+-   **Physical/VPS:** SSH into the system and:
+    ```bash
+    # Generate new GRUB password hash
+    grub-mkpasswd-pbkdf2
+    # Edit GRUB custom config
+    sudo nano /etc/grub.d/40_custom
+    # Update the password_pbkdf2 line with new hash
+    sudo update-grub
+    ```
