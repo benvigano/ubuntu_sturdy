@@ -66,6 +66,10 @@ update_sshd_config "ClientAliveCountMax" "2"
 update_sshd_config "AllowUsers" "${ADMIN_USER}"
 update_sshd_config "LoginGraceTime" "2m"
 update_sshd_config "MaxAuthTries" "3"
+update_sshd_config "AllowAgentForwarding" "no"
+update_sshd_config "AllowTcpForwarding" "no"
+update_sshd_config "GatewayPorts" "no"
+update_sshd_config "PermitTunnel" "no"
 
 
 # --- Restart SSH Service ---
@@ -95,6 +99,10 @@ declare -A REQUIRED_SSH_SETTINGS=(
     ["UsePAM"]="yes"
     ["AllowUsers"]="${ADMIN_USER}"
     ["MaxAuthTries"]="3"
+    ["AllowAgentForwarding"]="no"
+    ["AllowTcpForwarding"]="no"
+    ["GatewayPorts"]="no"
+    ["PermitTunnel"]="no"
 )
 
 ssh_failures=()
