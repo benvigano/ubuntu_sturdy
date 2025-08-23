@@ -44,6 +44,58 @@ postconf -e "relayhost = [smtp.gmail.com]:587"
 
 systemctl restart postfix
 
+# --- Verify Postfix Configuration ---
+
+echo "Verifying Postfix configuration..."
+
+# Verify critical Postfix settings
+postfix_failures=()
+
+# Check relayhost setting
+actual_relayhost=$(postconf -h relayhost 2>/dev/null || echo "FAILED")
+expected_relayhost="[smtp.gmail.com]:587"
+if [[ "$actual_relayhost" != "$expected_relayhost" ]]; then
+    postfix_failures+=("relayhost: expected '$expected_relayhost', got '$actual_relayhost'")
+fi
+
+# Check SASL auth is enabled
+actual_sasl_auth=$(postconf -h smtp_sasl_auth_enable 2>/dev/null || echo "FAILED")
+if [[ "$actual_sasl_auth" != "yes" ]]; then
+    postfix_failures+=("smtp_sasl_auth_enable: expected 'yes', got '$actual_sasl_auth'")
+fi
+
+# Check TLS is enabled
+actual_tls=$(postconf -h smtp_use_tls 2>/dev/null || echo "FAILED")
+if [[ "$actual_tls" != "yes" ]]; then
+    postfix_failures+=("smtp_use_tls: expected 'yes', got '$actual_tls'")
+fi
+
+# Check SASL password file exists and has correct permissions
+if [[ ! -f "/etc/postfix/sasl_passwd" ]]; then
+    postfix_failures+=("SASL password file missing: /etc/postfix/sasl_passwd")
+else
+    sasl_perms=$(stat -c "%a" "/etc/postfix/sasl_passwd" 2>/dev/null || echo "FAILED")
+    if [[ "$sasl_perms" != "600" ]]; then
+        postfix_failures+=("SASL password file permissions: expected '600', got '$sasl_perms'")
+    fi
+fi
+
+# Check SASL password database exists
+if [[ ! -f "/etc/postfix/sasl_passwd.db" ]]; then
+    postfix_failures+=("SASL password database missing: /etc/postfix/sasl_passwd.db (postmap may have failed)")
+fi
+
+if [ ${#postfix_failures[@]} -gt 0 ]; then
+    echo "ERROR: Critical Postfix settings verification failed:"
+    for failure in "${postfix_failures[@]}"; do
+        echo "  - $failure"
+    done
+    echo "This is a critical security configuration failure. Aborting."
+    exit 1
+fi
+
+echo "Postfix configuration verified successfully."
+
 # Get the absolute path to the configuration file
 CONFIG_PATH=$(realpath "$(dirname "$0")/config.sh")
 
@@ -252,6 +304,46 @@ sed -i "s/^MAILTO=.*/MAILTO=\"${NOTIFICATION_EMAIL}\"/" /etc/rkhunter.conf
 sed -i "s/^CRON_DAILY_RUN=.*/CRON_DAILY_RUN=\"true\"/" /etc/default/rkhunter
 sed -i "s/^APT_AUTOGEN=.*/APT_AUTOGEN=\"true\"/" /etc/default/rkhunter
 
+# --- Verify rkhunter Configuration ---
+
+echo "Verifying rkhunter configuration..."
+
+rkhunter_failures=()
+
+# Check WEB_CMD is disabled (empty)
+if ! grep -q "^WEB_CMD=\"\"" /etc/rkhunter.conf; then
+    rkhunter_failures+=("WEB_CMD not properly disabled in /etc/rkhunter.conf")
+fi
+
+# Check MAILTO is set correctly
+if ! grep -q "^MAILTO=\"${NOTIFICATION_EMAIL}\"" /etc/rkhunter.conf; then
+    actual_mailto=$(grep "^MAILTO=" /etc/rkhunter.conf 2>/dev/null || echo "MISSING")
+    rkhunter_failures+=("MAILTO setting incorrect: expected 'MAILTO=\"${NOTIFICATION_EMAIL}\"', found '$actual_mailto'")
+fi
+
+# Check CRON_DAILY_RUN is enabled
+if ! grep -q "^CRON_DAILY_RUN=\"true\"" /etc/default/rkhunter; then
+    actual_cron=$(grep "^CRON_DAILY_RUN=" /etc/default/rkhunter 2>/dev/null || echo "MISSING")
+    rkhunter_failures+=("CRON_DAILY_RUN not enabled: expected 'true', found '$actual_cron'")
+fi
+
+# Check APT_AUTOGEN is enabled
+if ! grep -q "^APT_AUTOGEN=\"true\"" /etc/default/rkhunter; then
+    actual_autogen=$(grep "^APT_AUTOGEN=" /etc/default/rkhunter 2>/dev/null || echo "MISSING")
+    rkhunter_failures+=("APT_AUTOGEN not enabled: expected 'true', found '$actual_autogen'")
+fi
+
+if [ ${#rkhunter_failures[@]} -gt 0 ]; then
+    echo "ERROR: Critical rkhunter settings verification failed:"
+    for failure in "${rkhunter_failures[@]}"; do
+        echo "  - $failure"
+    done
+    echo "This is a critical security configuration failure. Aborting."
+    exit 1
+fi
+
+echo "rkhunter configuration verified successfully."
+
 # Set up automated weekly rkhunter package and property updates
 cat > /usr/local/sbin/check_rkhunter_update.sh <<'EOF'
 #!/bin/bash
@@ -334,6 +426,41 @@ maxretry = 5
 EOF
 
 systemctl restart fail2ban
+
+# --- Verify fail2ban Configuration ---
+
+echo "Verifying fail2ban configuration..."
+
+fail2ban_failures=()
+
+# Check fail2ban service is active
+if ! systemctl is-active fail2ban >/dev/null 2>&1; then
+    fail2ban_failures+=("fail2ban service is not active")
+fi
+
+# Check critical jail settings were applied
+if ! grep -q "enabled = true" /etc/fail2ban/jail.local; then
+    fail2ban_failures+=("No jails enabled in jail.local")
+fi
+
+if ! grep -q "port = ${SSH_PORT}" /etc/fail2ban/jail.local; then
+    fail2ban_failures+=("SSH port not configured correctly in fail2ban")
+fi
+
+if ! grep -q "destemail = ${NOTIFICATION_EMAIL}" /etc/fail2ban/jail.local; then
+    fail2ban_failures+=("Notification email not configured correctly in fail2ban")
+fi
+
+if [ ${#fail2ban_failures[@]} -gt 0 ]; then
+    echo "ERROR: Critical fail2ban settings verification failed:"
+    for failure in "${fail2ban_failures[@]}"; do
+        echo "  - $failure"
+    done
+    echo "This is a critical security configuration failure. Aborting."
+    exit 1
+fi
+
+echo "fail2ban configuration verified successfully."
 
 # Set up automated fail2ban updates (filter patterns)
 cat > /etc/cron.d/fail2ban-update <<EOF

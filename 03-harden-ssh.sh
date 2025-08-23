@@ -81,6 +81,51 @@ fi
 
 systemctl restart ssh
 
+# --- Verify SSH Configuration ---
+
+echo "Verifying SSH hardening configuration..."
+
+# Define critical SSH settings that must be verified
+declare -A REQUIRED_SSH_SETTINGS=(
+    ["Port"]="${SSH_PORT}"
+    ["PermitRootLogin"]="no"
+    ["PasswordAuthentication"]="no"
+    ["PubkeyAuthentication"]="yes"
+    ["PermitEmptyPasswords"]="no"
+    ["UsePAM"]="yes"
+    ["AllowUsers"]="${ADMIN_USER}"
+    ["MaxAuthTries"]="3"
+)
+
+ssh_failures=()
+for setting in "${!REQUIRED_SSH_SETTINGS[@]}"; do
+    expected_value="${REQUIRED_SSH_SETTINGS[$setting]}"
+    # Extract the actual value from sshd_config (get the last uncommented occurrence)
+    actual_value=$(grep "^${setting}" "${SSHD_CONFIG}" | tail -1 | awk '{print $2}' || echo "MISSING")
+    
+    if [[ "$actual_value" != "$expected_value" ]]; then
+        ssh_failures+=("$setting: expected '$expected_value', got '$actual_value'")
+    fi
+done
+
+if [ ${#ssh_failures[@]} -gt 0 ]; then
+    echo "ERROR: Critical SSH settings verification failed:"
+    for failure in "${ssh_failures[@]}"; do
+        echo "  - $failure"
+    done
+    echo "This is a critical security configuration failure. Aborting."
+    exit 1
+fi
+
+# Verify SSH authorized keys file exists and has content
+if [[ ! -f "${AUTH_KEYS_FILE}" ]] || [[ ! -s "${AUTH_KEYS_FILE}" ]]; then
+    echo "ERROR: SSH authorized keys file is missing or empty: ${AUTH_KEYS_FILE}"
+    echo "This would prevent SSH access. Aborting."
+    exit 1
+fi
+
+echo "SSH hardening configuration verified successfully."
+
 echo "SSH has been hardened. Remember to connect using port ${SSH_PORT}."
 echo "Example: ssh -p ${SSH_PORT} ${ADMIN_USER}@your_server_ip"
 echo "--- SSH Hardening Finished ---"

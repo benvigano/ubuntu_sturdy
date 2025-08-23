@@ -139,6 +139,35 @@ fi
 echo "Console login prompts have been completely disabled."
 echo "The system is now SSH-only with no local login interface."
 
+# --- Verify Console Access Disabling ---
+
+echo "Verifying console access disabling configuration..."
+
+# Verify getty services are actually disabled
+getty_failures=()
+for tty_num in {1..6}; do
+    if systemctl is-enabled "getty@tty${tty_num}.service" >/dev/null 2>&1; then
+        getty_failures+=("getty@tty${tty_num}.service")
+    fi
+done
+
+if [ ${#getty_failures[@]} -gt 0 ]; then
+    echo "ERROR: Failed to disable getty services: ${getty_failures[*]}"
+    echo "This is a critical security configuration failure. Aborting."
+    exit 1
+fi
+
+# Verify systemd logind configuration
+if ! grep -q "^NAutoVTs=0" /etc/systemd/logind.conf; then
+    echo "ERROR: NAutoVTs=0 was not properly set in /etc/systemd/logind.conf"
+    echo "Current NAutoVTs setting:"
+    grep -n "NAutoVTs" /etc/systemd/logind.conf || echo "  (none found)"
+    echo "This is a critical security configuration failure. Aborting."
+    exit 1
+fi
+
+echo "Console access disabling verified successfully."
+
 # --- Install auditd ---
 
 echo "Installing and configuring auditd..."
@@ -265,6 +294,44 @@ EOF
 
 # Apply the settings immediately
 sysctl -p /etc/sysctl.d/99-security-hardening.conf
+
+# --- Verify Kernel Hardening Configuration ---
+
+echo "Verifying kernel hardening settings..."
+
+# Define critical security settings that must be verified
+declare -A REQUIRED_SYSCTL_SETTINGS=(
+    ["net.ipv4.ip_forward"]="0"
+    ["net.ipv4.conf.all.send_redirects"]="0"
+    ["net.ipv4.conf.all.accept_redirects"]="0"
+    ["net.ipv4.conf.all.accept_source_route"]="0"
+    ["kernel.dmesg_restrict"]="1"
+    ["kernel.kptr_restrict"]="2"
+    ["fs.suid_dumpable"]="0"
+    ["fs.protected_hardlinks"]="1"
+    ["fs.protected_symlinks"]="1"
+)
+
+sysctl_failures=()
+for setting in "${!REQUIRED_SYSCTL_SETTINGS[@]}"; do
+    expected_value="${REQUIRED_SYSCTL_SETTINGS[$setting]}"
+    actual_value=$(sysctl -n "$setting" 2>/dev/null || echo "FAILED")
+    
+    if [[ "$actual_value" != "$expected_value" ]]; then
+        sysctl_failures+=("$setting: expected '$expected_value', got '$actual_value'")
+    fi
+done
+
+if [ ${#sysctl_failures[@]} -gt 0 ]; then
+    echo "ERROR: Critical sysctl settings verification failed:"
+    for failure in "${sysctl_failures[@]}"; do
+        echo "  - $failure"
+    done
+    echo "This is a critical security configuration failure. Aborting."
+    exit 1
+fi
+
+echo "Kernel hardening settings verified successfully."
 
 echo "--- Initial System Setup Finished ---"
 echo ""

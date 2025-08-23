@@ -85,6 +85,52 @@ EOF
 
 echo "AppArmor configured. Profiles will switch to enforce mode after 7 days."
 
+# --- Verify AppArmor Configuration ---
+
+echo "Verifying AppArmor configuration..."
+
+apparmor_failures=()
+
+# Check AppArmor service is enabled and active
+if ! systemctl is-enabled apparmor >/dev/null 2>&1; then
+    apparmor_failures+=("AppArmor service is not enabled")
+fi
+
+if ! systemctl is-active apparmor >/dev/null 2>&1; then
+    apparmor_failures+=("AppArmor service is not active")
+fi
+
+# Check AppArmor is actually loaded
+if ! aa-status >/dev/null 2>&1; then
+    apparmor_failures+=("AppArmor is not loaded or aa-status command failed")
+fi
+
+# Check that some profiles are loaded (at least one should be active)
+profile_count=$(aa-status 2>/dev/null | grep -c "profiles are loaded" || echo "0")
+if [[ "$profile_count" == "0" ]]; then
+    apparmor_failures+=("No AppArmor profiles are loaded")
+fi
+
+# Check monitoring cron jobs exist
+if [[ ! -f "/etc/cron.d/apparmor-violations" ]]; then
+    apparmor_failures+=("AppArmor violations monitoring cron job missing")
+fi
+
+if [[ ! -f "/etc/cron.d/apparmor-enforce" ]]; then
+    apparmor_failures+=("AppArmor enforce mode cron job missing")
+fi
+
+if [ ${#apparmor_failures[@]} -gt 0 ]; then
+    echo "ERROR: Critical AppArmor settings verification failed:"
+    for failure in "${apparmor_failures[@]}"; do
+        echo "  - $failure"
+    done
+    echo "This is a critical security configuration failure. Aborting."
+    exit 1
+fi
+
+echo "AppArmor configuration verified successfully."
+
 # --- Final Steps & Cleanup ---
 
 echo "Performing final system cleanup..."
