@@ -87,6 +87,9 @@ cat > /etc/apparmor/notify.d/notify <<'EOF'
 set -e
 set -o pipefail
 
+# Load persistent configuration
+source /etc/sturdy.conf
+
 # $1 will be the event type (e.g., "DENIED")
 # $2 will be the full message
 /usr/local/sbin/format_security_mail.sh "WARNING" "APPARMOR-${1}" "AppArmor ${1} event detected" "${2}"

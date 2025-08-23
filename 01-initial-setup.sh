@@ -42,6 +42,28 @@ else
     echo "UID 0 check passed. Only 'root' has UID 0."
 fi
 
+# --- Create Persistent Configuration ---
+
+echo "Creating persistent configuration file at /etc/sturdy.conf..."
+# This file stores non-sensitive variables needed for ongoing operations (cron jobs, etc.)
+# It is created once and persists after the initial config.sh is shredded.
+cat > /etc/sturdy.conf <<EOF
+# Persistent configuration for Sturdy Ubuntu scripts
+# This file is safe to keep and can be edited to update operational settings.
+
+export NOTIFICATION_EMAIL="${NOTIFICATION_EMAIL}"
+export GMAIL_ADDRESS="${GMAIL_ADDRESS}"
+export SERVER_NAME="${SERVER_NAME}"
+export SSH_PORT="${SSH_PORT}"
+export ADMIN_USER="${ADMIN_USER}"
+EOF
+
+# Set secure permissions
+chmod 644 /etc/sturdy.conf
+chown root:root /etc/sturdy.conf
+
+echo "Persistent configuration created successfully."
+
 # --- Local Access Control ---
 
 echo "Disabling ALL local TTY/console login to enforce SSH-only access..."

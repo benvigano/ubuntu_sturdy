@@ -54,6 +54,13 @@ cd sturdy_ubuntu
 
 Fill in the `config.sh` file.
 
+The following non-sensitive, operational variables **will be stored** in a persistent configuration file (`/etc/sturdy.conf`) as they are needed by scheduled tasks:
+- NOTIFICATION_EMAIL
+- GMAIL_ADDRESS
+- SERVER_NAME
+- SSH_PORT
+- ADMIN_USER
+
 If your user doesn't have sudo privileges, add them to the sudo group first:
 ```bash
 sudo usermod -aG sudo your_username
@@ -87,11 +94,11 @@ At the end of the process, a Lynis audit report sent via email.
    - SSH private key correspondant to the public key used in setup
    - GRUB superuser name and password
 
-2. **Remove Configuration File:**
+2. **Remove Temporary Configuration File:**
    ```bash
    shred -u config.sh
    ```
-   This securely deletes the configuration file containing sensitive information.
+   This securely deletes the initial configuration file containing sensitive information.
 
 ### 7. Reboot the system
 

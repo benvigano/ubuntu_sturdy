@@ -96,17 +96,11 @@ fi
 
 echo "Postfix configuration verified successfully."
 
-# Get the absolute path to the configuration file
-CONFIG_PATH=$(realpath "$(dirname "$0")/config.sh")
-
-# Create email formatting helper script.
-# We write the config source line separately to expand the CONFIG_PATH variable,
-# then append the rest of the script with a quoted 'EOF' to prevent premature
-# variable expansion of $1, $SUBJECT, etc.
-echo "#!/bin/bash" > /usr/local/sbin/format_security_mail.sh
-echo "# Load server configuration" >> /usr/local/sbin/format_security_mail.sh
-echo "source \"${CONFIG_PATH}\"" >> /usr/local/sbin/format_security_mail.sh
-cat >> /usr/local/sbin/format_security_mail.sh <<'EOF'
+# Create email formatting helper script
+cat > /usr/local/sbin/format_security_mail.sh <<'EOF'
+#!/bin/bash
+# Load server configuration from persistent location
+source /etc/sturdy.conf
 set -e
 set -o pipefail
 
@@ -184,6 +178,9 @@ cat > /usr/local/sbin/check_aide.sh <<'EOF'
 set -e
 set -o pipefail
 
+# Load persistent configuration
+source /etc/sturdy.conf
+
 CHECK_OUTPUT=$(/usr/bin/aide --check 2>&1)
 EXIT_CODE=$?
 
@@ -216,6 +213,9 @@ cat > /usr/local/sbin/check_clamav_update.sh <<'EOF'
 #!/bin/bash
 set -e
 set -o pipefail
+
+# Load persistent configuration
+source /etc/sturdy.conf
 
 # Stop freshclam daemon to allow manual update check
 systemctl stop clamav-freshclam
@@ -256,6 +256,9 @@ cat > /usr/local/sbin/run_clamscan.sh <<'EOF'
 #!/bin/bash
 set -e
 set -o pipefail
+
+# Load persistent configuration
+source /etc/sturdy.conf
 
 SCAN_OUTPUT=$(/usr/bin/clamscan --infected --recursive --exclude-dir="^/sys|^/proc" / 2>&1)
 EXIT_CODE=$?
@@ -351,17 +354,13 @@ fi
 echo "rkhunter configuration verified successfully."
 
 # Set up automated weekly rkhunter package and property updates
-cat > /usr/local/sbin/check_rkhunter_update.sh <<'EOF'
+cat > /usr/local/sbin/check_rkhunter_update.sh <<EOF
 #!/bin/bash
 set -e
 set -o pipefail
 
-# Load server configuration
-source "$(dirname "$0")/../../ubuntu_sturdy/config.sh" 2>/dev/null || source "/root/ubuntu_sturdy/config.sh" 2>/dev/null || {
-    # Fallback: extract email from rkhunter config
-    NOTIFICATION_EMAIL=$(grep "^MAILTO=" /etc/rkhunter.conf 2>/dev/null | cut -d'"' -f2 || echo "root")
-    SERVER_NAME=$(hostname)
-}
+# Load persistent configuration
+source /etc/sturdy.conf
 
 # Update rkhunter package to get latest signatures
 UPDATE_OUTPUT=$(/usr/bin/apt-get update && /usr/bin/apt-get install --only-upgrade rkhunter -y 2>&1) || {
