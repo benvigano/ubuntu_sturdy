@@ -62,7 +62,24 @@ sudo ./run-all.sh
 ### 5. Review Lynis audit report
 At the end of the process, a Lynis audit report sent via email.
 
-### 6. Reboot the system
+### 6. Secure Access Credentials
+
+After verifying that all services work correctly, securely store these critical access credentials:
+
+1. **System Access Information:**
+   - SSH port number
+   - SSH private key correspondant to the public key used in setup
+   - GRUB superuser name and password
+
+2. **Remove Configuration File:**
+   ```bash
+   shred -u config.sh
+   ```
+   This securely deletes the configuration file containing sensitive information.
+
+⚠️ Without these credentials, you may permanently lose access to your system.
+
+### 7. Reboot the system
 
 ```bash
 sudo reboot
@@ -71,17 +88,13 @@ sudo reboot
 
 ## NOT covered
 
-This hardening suite focuses on the operating system level. The following areas are critical for a secure system but are not handled by these scripts.
-
-### Out of scope (manual configuration recommended)
-
-- **Physical Security:** BIOS/UEFI passwords, disabling boot from external devices.
-- **Installation Choices:** Full Disk Encryption (LUKS), ZFS, secure installation media verification.
+### Because not automatable (but manual setup **highly  recommended**)
+- **Physical Security:** BIOS/UEFI passwords, disabling boot from external devices etc.
+- **Installation Choices:** Full Disk Encryption (LUKS), ZFS, secure installation media verification etc.
 - **LAN Security:** Wifi, router configuration, network segmentation.
 
-
-### Deliberate Design Choices
-- **GRUB Recovery Mode Enabled:** Recovery mode is intentionally left enabled to provide an essential emergency access path. Disabling it would lead to a high risk of permanent lockout, especially on a VPS, if SSH access is lost.
+### For Design Choices
+- **Disabling GRUB Recovery Mode:** Recovery mode is intentionally left enabled (password protected) as disabling it would cause permanent lockout in case access to the system is accidentally lost (lost ssh key, removed user from sudoers...).
 
 ### Possible changes/enhancements
 - MFA for SSH
@@ -89,16 +102,12 @@ This hardening suite focuses on the operating system level. The following areas 
 - SELinux instead of AppArmor
 - grsecurity
 - HSMs
-
 #### In case of **outside-facing services**:
-- **Internet exposure** - IP filtering, geo-blocking, VPN detection
-- **Service-specific hardening** - Web servers, databases, application-level security
+- Internet exposure - IP filtering, geo-blocking, VPN detection
+- Service-specific hardening - web servers, databases, application-level security
 
 ## Troubleshooting
 
-### SSH Lockout / Lost Private Key
-
-This is a critical, but recoverable, situation. The GRUB password is your key to recovery.
-
+### Case: SSH Lockout / Lost Private Key
 -   **Physical Server:** At boot, enter the GRUB password, select "Advanced options," and then "Recovery mode." This will give you a root shell to repair the system (e.g., add a new SSH key to `/home/your_user/.ssh/authorized_keys`).
 -   **VPS:** Most providers offer a VNC/KVM console that simulates physical access. Use this to enter the GRUB password and access recovery mode as you would on a physical machine.
