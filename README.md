@@ -28,8 +28,9 @@
 - START+2h   - Antivirus signature update (ClamAV)
 - START+3h   - Rootkit check (rkhunter)
 - START+4h   - Time synchronization check (chrony)
+- START+5h   - Kernel module integrity check
 
-**Weekly:**
+**Weekly (via cron):**
 - Sunday   - START      - Full system antivirus scan (ClamAV)
 - Saturday - START      - Rootkit database update (rkhunter)
 - Saturday - START+1h   - Intrusion prevention update (fail2ban)
@@ -70,6 +71,10 @@ chmod +x *.sh
 # Run the configuration
 sudo ./run-all.sh
 
+# Test ssh access from another terminal without closing the current terminal
+# Test ssh access from another terminal
+ssh -p your_ssh_port your_admin_user@your_server_ip
+
 # Review Lynis audit report sent via email
 
 # Store credentials you set in the config.sh file in a safe place:
@@ -77,13 +82,15 @@ sudo ./run-all.sh
 # 2. ssh port number
 # 3. GRUB superuser user name and password
 
-#(IMPORTANT! Loosing both GRUB credentials and ssh keys will permanently lock you out of your your system!)
+# (^^ IMPORTANT! Loosing both GRUB credentials and ssh keys will permanently lock you out of your your system!)
 
 # Delete config file
 shred -u config.sh
 
 # Reboot the system
 sudo reboot
+
+# After rebooting, test GRUB access
 ```
 
 ## NOT covered
@@ -103,6 +110,7 @@ sudo reboot
 - SELinux instead of AppArmor
 - grsecurity
 - HSMs
+- Requiring pre-hashed grub password to avoid saving it in plaintext
 #### In case of **outside-facing services**:
 - Internet exposure - IP filtering, geo-blocking, VPN detection
 - Service-specific hardening - web servers, databases, application-level security
