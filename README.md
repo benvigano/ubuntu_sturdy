@@ -52,7 +52,7 @@
 
 ```bash
 git clone https://github.com/benvigano/sturdy_ubuntu.git`
-cd sturdy_ubuntu
+cd ubuntu_sturdy
 nano config.sh  # Fill in your variables
 ```
 
@@ -74,6 +74,7 @@ sudo ./run-all.sh
 
 # Test ssh access from another terminal without closing the current terminal
 # Test ssh access from another terminal
+sudo systemctl restart ssh
 ssh -p your_ssh_port your_admin_user@your_server_ip
 
 # Review Lynis audit report sent via email
