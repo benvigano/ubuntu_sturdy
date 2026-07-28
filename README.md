@@ -102,6 +102,11 @@ sudo reboot
 - **LAN Security:** Wifi, router configuration, network segmentation.
 - **Backup Strategy:** Retention policies, versioning etc.
 
+### Optional config for container hosts
+Set in `config.sh` before running (default empty = strict monitoring):
+
+- **`FILE_INTEGRITY_EXCLUDE_PATHS`** — space-separated paths ignored by daily file-integrity checks (e.g. `"/var/lib/docker /opt/homelab"`). Applied at database init; rebuild the integrity DB if changed later.
+
 ### Design Choices
 - **Disabling GRUB Recovery Mode:** Recovery mode is intentionally left enabled (password protected) as disabling it would cause permanent lockout in case access to the system is accidentally lost (lost ssh key, removed user from sudoers...).
 

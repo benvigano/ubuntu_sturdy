@@ -170,6 +170,26 @@ sleep 5 # Give postfix a moment to send
 # --- Configure AIDE ---
 
 echo "Configuring AIDE for file integrity monitoring..."
+
+# Optional path exclusions (applied before database init).
+# Drop-in name must match Ubuntu's @@x_include regex: ^[a-zA-Z0-9_-]+$
+FILE_INTEGRITY_EXCLUDE_DROPIN="/etc/aide/aide.conf.d/99_path_excludes"
+mkdir -p /etc/aide/aide.conf.d
+
+if [[ -n "${FILE_INTEGRITY_EXCLUDE_PATHS:-}" ]]; then
+    echo "Writing file-integrity path exclusions to ${FILE_INTEGRITY_EXCLUDE_DROPIN}..."
+    {
+        echo "# Optional file-integrity path exclusions (from FILE_INTEGRITY_EXCLUDE_PATHS)"
+        for exclude_path in ${FILE_INTEGRITY_EXCLUDE_PATHS}; do
+            # Normalize: strip trailing slash for consistent matching
+            exclude_path="${exclude_path%/}"
+            echo "!${exclude_path}"
+        done
+    } > "${FILE_INTEGRITY_EXCLUDE_DROPIN}"
+else
+    rm -f "${FILE_INTEGRITY_EXCLUDE_DROPIN}"
+fi
+
 # Initialize the AIDE database. This can take a while.
 # Skip if database already exists (idempotent)
 if [[ ! -f /var/lib/aide/aide.db ]]; then
@@ -178,6 +198,11 @@ if [[ ! -f /var/lib/aide/aide.db ]]; then
     mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db
 else
     echo "AIDE database already exists, skipping initialization."
+    if [[ -n "${FILE_INTEGRITY_EXCLUDE_PATHS:-}" ]]; then
+        echo "NOTE: FILE_INTEGRITY_EXCLUDE_PATHS is set but the database already exists."
+        echo "      Rebuild the database after changing exclusions:"
+        echo "      sudo aideinit && sudo mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db"
+    fi
 fi
 
 # Create AIDE check wrapper

@@ -12,3 +12,7 @@ GMAIL_APP_PASSWORD="sender_gmail_app_password"  # Password of the Gmail address.
 NOTIFICATION_EMAIL="receiver@email.com"  # Destination email for all security notifications.
 SERVER_NAME="server_name"  # Exclusively for alert email subject lines.
 DAILY_TASKS_START_TIME="02:00"  # Start time (24h format) for daily security tasks.
+
+# Optional: space-separated absolute paths excluded from daily file-integrity checks
+# (high-churn app/runtime data). Example for container hosts: "/var/lib/docker /opt/homelab"
+FILE_INTEGRITY_EXCLUDE_PATHS=""
