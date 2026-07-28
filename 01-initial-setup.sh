@@ -277,9 +277,10 @@ systemctl enable unattended-upgrades
 echo "Applying kernel hardening settings..."
 
 # Create sysctl configuration for security hardening (idempotent - overwrites existing)
+# Note: net.ipv4.ip_forward is intentionally not set. Ubuntu defaults to 0 (no
+# routing). Container runtimes that need bridge networking enable it themselves.
 cat > /etc/sysctl.d/99-security-hardening.conf <<EOF
 # Network Security
-net.ipv4.ip_forward = 0
 net.ipv4.conf.all.send_redirects = 0
 net.ipv4.conf.default.send_redirects = 0
 net.ipv4.conf.all.accept_redirects = 0
@@ -323,7 +324,6 @@ echo "Verifying kernel hardening settings..."
 
 # Define critical security settings that must be verified
 declare -A REQUIRED_SYSCTL_SETTINGS=(
-    ["net.ipv4.ip_forward"]="0"
     ["net.ipv4.conf.all.send_redirects"]="0"
     ["net.ipv4.conf.all.accept_redirects"]="0"
     ["net.ipv4.conf.all.accept_source_route"]="0"
